@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class LeaveRequest extends Model
 {
-    protected $fillable = ['student_id', 'from_date', 'to_date', 'status', 'approved_by'];
+    protected $fillable = ['student_id', 'from_date', 'to_date', 'reason', 'status', 'approved_by'];
 
     protected function casts(): array
     {

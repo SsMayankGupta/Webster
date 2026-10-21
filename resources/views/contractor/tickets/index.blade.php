@@ -1,4 +1,5 @@
 @extends('layouts.contractor')
+@section('title', 'Ticket Resolution - Contractor')
 @section('content')
 <h1 class="text-2xl font-semibold mb-4">Tickets</h1>
 <div class="bg-white rounded-2xl shadow p-4">

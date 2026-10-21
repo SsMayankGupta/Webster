@@ -1,4 +1,5 @@
 @extends('layouts.student')
+@section('title', 'Daily Menus - Nutrition & Schedule')
 @section('content')
 <h1 class="text-xl font-semibold mb-4">Menus</h1>
 @foreach($menus as $m)

@@ -2,20 +2,26 @@
 
 namespace App\Http\Controllers\Contractor;
 
+use App\Exceptions\RedemptionRejectedException;
 use App\Http\Controllers\Controller;
-use App\Models\MealBooking;
 use App\Models\QrToken;
 use App\Models\ScanLog;
+use App\Services\QrRedemptionService;
+use App\Services\QrTokenService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Crypt;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Redis;
 
 class ScanController extends Controller
 {
+    public function __construct(
+        private readonly QrTokenService $tokens,
+        private readonly QrRedemptionService $redemptions,
+    ) {}
+
     public function index()
     {
-        return view('contractor.scanner');
+        return view('contractor.scanner', [
+            'lanes' => config('mess.lanes'),
+        ]);
     }
 
     public function redeem(Request $request)
@@ -23,66 +29,55 @@ class ScanController extends Controller
         $data = $request->validate([
             'token' => 'nullable|string',
             'jti' => 'nullable|string',
-            'device_id' => 'nullable|string',
+            'lane' => 'nullable|string|max:8',
+            'device_id' => 'nullable|string|max:64',
         ]);
 
         $device = $data['device_id'] ?? $request->ip();
+        $lane = isset($data['lane']) ? strtoupper($data['lane']) : null;
 
-        if (! empty($data['token'])) {
-            try {
-                $payload = json_decode(Crypt::decryptString($data['token']), true);
-            } catch (\Throwable $e) {
-                return response()->json(['ok' => false, 'message' => 'Invalid token'], 422);
+        $bookingId = null;
+        $jti = $data['jti'] ?? null;
+
+        if (filled($data['token'] ?? null)) {
+            $payload = $this->tokens->verify($data['token']);
+            $bookingId = (int) $payload['booking_id'];
+            $jti = (string) $payload['jti'];
+            $tokenLane = $payload['lane'] ?? null;
+
+            if ($lane !== null && $tokenLane !== null && strcasecmp($lane, (string) $tokenLane) !== 0) {
+                throw new RedemptionRejectedException(
+                    "This token is pinned to lane {$tokenLane}. You are scanning at lane {$lane}.",
+                    409,
+                );
             }
-            $jti = $payload['jti'] ?? null;
-            $exp = $payload['exp'] ?? 0;
-            if (! $jti || now()->timestamp > $exp) {
-                return response()->json(['ok' => false, 'message' => 'Expired token'], 422);
+        } elseif (filled($jti)) {
+            $token = QrToken::query()->with('booking')->where('jti', $jti)->first();
+
+            if (! $token) {
+                throw new RedemptionRejectedException('Unknown check-in token.', 422);
             }
-        } else {
-            $jti = $data['jti'] ?? null;
+
+            if ($token->used_at !== null || $token->expires_at->isPast()) {
+                throw new RedemptionRejectedException('This check-in token has expired or was already used.', 409);
+            }
+
+            $bookingId = $token->booking_id;
         }
 
-        if (! $jti) {
-            return response()->json(['ok' => false, 'message' => 'Missing jti'], 422);
+        if ($bookingId === null) {
+            throw new RedemptionRejectedException('Missing check-in token.', 422);
         }
 
-        // Atomic Redis SET-NX
-        $key = "scan:redeem:{$jti}";
-        $claimed = Redis::setnx($key, $device);
-        if (! $claimed) {
-            return response()->json(['ok' => false, 'message' => 'Already scanned'], 409);
-        }
-        Redis::expire($key, 120);
+        $consumption = $this->redemptions->redeem($bookingId, $jti, $lane, $device);
 
-        try {
-            DB::transaction(function () use ($jti, $device) {
-                $token = QrToken::where('jti', $jti)->lockForUpdate()->first();
-                if (! $token || $token->used_at) {
-                    throw new \RuntimeException('Token used or missing');
-                }
-                if (now()->gt($token->expires_at)) {
-                    throw new \RuntimeException('Token expired');
-                }
-                $token->update(['used_at' => now()]);
-                $booking = $token->booking;
-                if ($booking) {
-                    $booking->update(['status' => 'consumed']);
-                }
-                ScanLog::create([
-                    'jti' => $jti,
-                    'device_id' => $device,
-                    'hmac' => '',
-                    'is_offline' => false,
-                    'scanned_at' => now(),
-                ]);
-            });
-        } catch (\Throwable $e) {
-            Redis::del($key);
-            return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
-        }
-
-        return response()->json(['ok' => true, 'message' => 'Redeemed']);
+        return response()->json([
+            'ok' => true,
+            'message' => 'Redeemed at lane '.$consumption->lane,
+            'booking_id' => $consumption->booking_id,
+            'lane' => $consumption->lane,
+            'consumed_at' => $consumption->consumed_at->toIso8601String(),
+        ]);
     }
 
     public function batchVerify(Request $request)
@@ -92,50 +87,61 @@ class ScanController extends Controller
         ]);
 
         $results = [];
+
         foreach ($data['scans'] as $scan) {
             $jti = $scan['jti'] ?? null;
             $device = $scan['device_id'] ?? 'offline';
+            $lane = isset($scan['lane']) ? strtoupper((string) $scan['lane']) : null;
             $hmac = $scan['hmac'] ?? '';
             $scannedAt = $scan['scanned_at'] ?? now()->toDateTimeString();
             $seq = $scan['seq'] ?? 0;
 
-            // HMAC verification using shared secret (device key). Here verify against app key.
-            $secret = config('app.key');
-            $payload = $jti . '|' . $device . '|' . $scannedAt . '|' . $seq;
+            $secret = (string) config('app.key');
+            $payload = $jti.'|'.$device.'|'.$scannedAt.'|'.$seq;
             $expected = hash_hmac('sha256', $payload, $secret);
-            if (! hash_equals($expected, $hmac)) {
+
+            if (! hash_equals($expected, (string) $hmac)) {
                 $results[] = ['jti' => $jti, 'ok' => false, 'message' => 'Bad HMAC'];
+
                 continue;
             }
 
-            $key = "scan:redeem:{$jti}";
-            if (! Redis::setnx($key, $device)) {
-                $results[] = ['jti' => $jti, 'ok' => false, 'message' => 'Duplicate'];
+            $token = QrToken::query()->where('jti', $jti)->first();
+
+            if (! $token) {
+                $results[] = ['jti' => $jti, 'ok' => false, 'message' => 'Unknown token'];
+
                 continue;
             }
-            Redis::expire($key, 120);
 
             try {
-                DB::transaction(function () use ($jti, $device, $hmac, $scannedAt) {
-                    $token = QrToken::where('jti', $jti)->lockForUpdate()->first();
-                    if ($token && ! $token->used_at) {
-                        $token->update(['used_at' => now()]);
-                        if ($token->booking) {
-                            $token->booking->update(['status' => 'consumed']);
-                        }
-                    }
-                    ScanLog::create([
-                        'jti' => $jti,
-                        'device_id' => $device,
-                        'hmac' => $hmac,
-                        'is_offline' => true,
-                        'scanned_at' => $scannedAt,
-                    ]);
-                });
-                $results[] = ['jti' => $jti, 'ok' => true];
-            } catch (\Throwable $e) {
-                Redis::del($key);
-                $results[] = ['jti' => $jti, 'ok' => false, 'message' => $e->getMessage()];
+                $consumption = $this->redemptions->redeem(
+                    $token->booking_id,
+                    (string) $jti,
+                    $lane,
+                    (string) $device,
+                    true,
+                );
+
+                ScanLog::query()->create([
+                    'jti' => $jti,
+                    'device_id' => $device,
+                    'hmac' => $hmac,
+                    'is_offline' => true,
+                    'scanned_at' => $scannedAt,
+                ]);
+
+                $results[] = [
+                    'jti' => $jti,
+                    'ok' => true,
+                    'lane' => $consumption->lane,
+                ];
+            } catch (RedemptionRejectedException $exception) {
+                $results[] = [
+                    'jti' => $jti,
+                    'ok' => false,
+                    'message' => $exception->getMessage(),
+                ];
             }
         }
 

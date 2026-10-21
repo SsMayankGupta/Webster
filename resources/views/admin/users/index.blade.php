@@ -1,4 +1,5 @@
 @extends('layouts.contractor')
+@section('title', 'User Management - Admin')
 @section('content')
 <h1 class="text-2xl font-semibold mb-4">Users</h1>
 <div class="bg-white rounded-2xl shadow p-4">

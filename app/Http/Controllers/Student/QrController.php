@@ -7,6 +7,7 @@ use App\Models\MealBooking;
 use App\Models\QrToken;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Str;
 
 class QrController extends Controller
@@ -36,6 +37,7 @@ class QrController extends Controller
             'booking_id' => $booking->id,
             'expires_at' => $expires,
         ]);
+        Redis::setex("qr:token:{$jti}", 60, $booking->id);
 
         $payload = [
             'jti' => $jti,

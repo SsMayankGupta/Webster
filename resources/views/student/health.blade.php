@@ -1,4 +1,5 @@
 @extends('layouts.student')
+@section('title', 'Health Hub - Nutrition & Weight Tracking')
 @section('content')
 <h1 class="text-xl font-semibold mb-4">Health Hub</h1>
 <div class="bg-white rounded-2xl shadow p-4 mb-3">

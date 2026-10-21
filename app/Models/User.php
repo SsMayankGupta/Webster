@@ -12,7 +12,7 @@ class User extends Authenticatable
 
     protected $fillable = [
         'name', 'college_id', 'email', 'password', 'role',
-        'hostel', 'dietary_pref', 'weight_log', 'mess_id',
+        'hostel', 'dietary_pref', 'dietary_tags', 'weight_log', 'mess_id',
     ];
 
     protected $hidden = ['password', 'remember_token'];
@@ -23,7 +23,13 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'weight_log' => 'array',
+            'dietary_tags' => 'array',
         ];
+    }
+
+    public function isStudent(): bool
+    {
+        return $this->role === 'student';
     }
 
     public function mealBookings()

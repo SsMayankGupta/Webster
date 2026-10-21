@@ -1,4 +1,5 @@
 @extends('layouts.student')
+@section('title', 'Request Leave - Student')
 @section('content')
 <h1 class="text-xl font-semibold mb-4">Request Leave</h1>
 <form method="POST" action="{{ route('student.leave.store') }}" class="bg-white rounded-2xl shadow p-4 space-y-3">

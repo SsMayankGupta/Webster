@@ -1,4 +1,5 @@
 @extends('layouts.student')
+@section('title', 'Raise Ticket - Student')
 @section('content')
 <h1 class="text-xl font-semibold mb-4">Raise Ticket</h1>
 <form method="POST" action="{{ route('student.tickets.store') }}" class="bg-white rounded-2xl shadow p-4 space-y-3">

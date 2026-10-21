@@ -1,4 +1,5 @@
 @extends('layouts.student')
+@section('title', 'Leave Requests - Rebate Billing')
 @section('content')
 <h1 class="text-xl font-semibold mb-4">Leave Requests</h1>
 <a href="{{ route('student.leave.create') }}" class="mb-4 inline-block bg-emerald-600 text-white px-3 py-1 rounded">New Leave</a>

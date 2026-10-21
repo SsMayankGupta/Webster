@@ -1,4 +1,5 @@
 @extends('layouts.contractor')
+@section('title', 'Waste Monetization - Contractor')
 @section('content')
 <h1 class="text-2xl font-semibold mb-4">Waste Log</h1>
 <form method="POST" action="{{ route('contractor.waste.store') }}" class="bg-white rounded-2xl shadow p-4 space-y-3 mb-6">
@@ -24,7 +25,7 @@
 </form>
 <div class="bg-white rounded-2xl shadow p-4">
 @foreach($transactions as $t)
-    <div class="py-2 border-b last:border-0">{{ $t->type }} - {{ $t->weight_kg }}kg - ${{ $t->earnings }}</div>
+    <div class="py-2 border-b last:border-0">{{ $t->type }} - {{ $t->weight_kg }}kg - ₹{{ $t->earnings }}</div>
 @endforeach
 </div>
 @endsection

@@ -1,4 +1,5 @@
 @extends('layouts.contractor')
+@section('title', 'Menu Builder - AI Macro Analyzer')
 @section('content')
 <h1 class="text-2xl font-semibold mb-4">Menu Builder</h1>
 <form method="POST" action="{{ route('contractor.menu-builder.store') }}" class="bg-white rounded-2xl shadow p-4 space-y-3 mb-6">

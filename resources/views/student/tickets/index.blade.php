@@ -1,4 +1,5 @@
 @extends('layouts.student')
+@section('title', 'My Tickets - Complaints & Feedback')
 @section('content')
 <h1 class="text-xl font-semibold mb-4">My Tickets</h1>
 <a href="{{ route('student.tickets.create') }}" class="mb-4 inline-block bg-emerald-600 text-white px-3 py-1 rounded">New Ticket</a>
