@@ -12,7 +12,7 @@
         "laravel/sanctum": "*",
         "laravel/tinker": "^3.0",
         "livewire/livewire": "^3.8",
-        "predis/predis": "*",
+        "predis/predis": "^3.7",
         "simplesoftwareio/simple-qrcode": "*"
     },
     "require-dev": {
