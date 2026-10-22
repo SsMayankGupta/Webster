@@ -31,7 +31,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('meal_bookings', function (Blueprint $table) {
-            $table->dropIndex('meal_bookings_id_index');
+            $table->dropIndex(['id']);
             $table->dropColumn(['is_guest_pass', 'primary_student_id', 'guest_count']);
         });
 
