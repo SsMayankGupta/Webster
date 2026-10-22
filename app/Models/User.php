@@ -61,4 +61,19 @@ class User extends Authenticatable
     {
         return $this->hasMany(LeaveRequest::class, 'approved_by');
     }
+
+    public function mealFeedbacks()
+    {
+        return $this->hasMany(MealFeedback::class, 'student_id');
+    }
+
+    public function notices()
+    {
+        return $this->hasMany(Notice::class, 'contractor_id');
+    }
+
+    public function primaryGuestBookings()
+    {
+        return $this->hasMany(MealBooking::class, 'primary_student_id');
+    }
 }

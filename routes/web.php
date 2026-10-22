@@ -8,8 +8,6 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', StudentPortal::class)->name('home');
 
-Route::get('/login', fn () => view('auth.student-login'))->name('login');
-
 Route::get('/portal/qr/public-key', [PortalQrController::class, 'publicKey'])
     ->name('portal.qr.public-key');
 
@@ -22,9 +20,6 @@ Route::prefix('portal')->name('portal.')->middleware('auth:student')->group(func
 
 Route::get('/dashboard', function () {
     $user = auth()->user();
-    if ($user?->role === 'student') {
-        return redirect()->route('student.dashboard');
-    }
     if ($user?->role === 'contractor') {
         return redirect()->route('contractor.dashboard');
     }

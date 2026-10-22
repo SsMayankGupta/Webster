@@ -4,13 +4,16 @@ namespace App\Models;
 
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Menu extends Model
 {
     protected $fillable = [
         'meal_type', 'serve_at', 'protein', 'carbs', 'calories',
         'recipe_text', 'items', 'is_locked', 'status', 'headcount_locked',
+        'meal_time_slot_id',
     ];
 
     protected function casts(): array
@@ -25,6 +28,26 @@ class Menu extends Model
     public function mealBookings(): HasMany
     {
         return $this->hasMany(MealBooking::class);
+    }
+
+    public function mealTimeSlot(): BelongsTo
+    {
+        return $this->belongsTo(MealTimeSlot::class, 'meal_time_slot_id');
+    }
+
+    public function headcountLedger(): HasOne
+    {
+        return $this->hasOne(HeadcountLedger::class);
+    }
+
+    public function forecast(): HasOne
+    {
+        return $this->hasOne(Forecast::class);
+    }
+
+    public function mealFeedbacks(): HasMany
+    {
+        return $this->hasMany(MealFeedback::class, 'menu_id');
     }
 
     /**

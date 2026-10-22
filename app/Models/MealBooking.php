@@ -12,6 +12,7 @@ class MealBooking extends Model
     protected $fillable = [
         'student_id', 'menu_id', 'status', 'dietary_pref',
         'assigned_lane', 'confirmed_at', 'locked_at',
+        'is_guest_pass', 'primary_student_id', 'guest_count',
     ];
 
     protected function casts(): array
@@ -45,5 +46,10 @@ class MealBooking extends Model
     public function feedback(): HasMany
     {
         return $this->hasMany(Feedback::class, 'booking_id');
+    }
+
+    public function primaryStudent(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'primary_student_id');
     }
 }

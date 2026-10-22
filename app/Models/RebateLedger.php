@@ -31,4 +31,15 @@ class RebateLedger extends Model
     {
         return $this->belongsTo(LeaveRequest::class);
     }
+
+    protected static function booted(): void
+    {
+        static::updating(function ($model) {
+            throw new \Exception('RebateLedger is append-only: updates are not allowed.');
+        });
+
+        static::deleting(function ($model) {
+            throw new \Exception('RebateLedger is append-only: deletes are not allowed.');
+        });
+    }
 }

@@ -23,7 +23,7 @@
             </div>
 
             <div class="grid w-full gap-4 sm:grid-cols-2">
-                <a href="{{ route('student.login') }}" class="card-hover flex items-center gap-4 p-5 text-left">
+                <a href="/" class="card-hover flex items-center gap-4 p-5 text-left">
                     <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white">
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
                     </span>

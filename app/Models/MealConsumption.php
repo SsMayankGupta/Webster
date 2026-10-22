@@ -22,4 +22,15 @@ class MealConsumption extends Model
     {
         return $this->belongsTo(MealBooking::class, 'booking_id');
     }
+
+    protected static function booted(): void
+    {
+        static::updating(function ($model) {
+            throw new \Exception('MealConsumption is append-only: updates are not allowed.');
+        });
+
+        static::deleting(function ($model) {
+            throw new \Exception('MealConsumption is append-only: deletes are not allowed.');
+        });
+    }
 }
