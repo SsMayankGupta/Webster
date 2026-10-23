@@ -1,91 +1,103 @@
-<div>
-    <div class="space-y-6">
-        <!-- Log Waste Form -->
-        <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-            <h3 class="mb-4 text-lg font-semibold">Log Waste</h3>
-            
-            <form wire:submit="logWaste" class="space-y-4">
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div>
-                        <label class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Weight (kg)</label>
+<div class="font-lora">
+    <div class="space-y-8">
+        <header class="border-b border-slate-200 pb-5 dark:border-slate-800">
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-400">Daily operations</p>
+            <h2 class="mt-2 text-2xl font-medium tracking-tight text-slate-900 dark:text-white">Waste management</h2>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Record food waste and track how it is reused or recovered.</p>
+        </header>
+
+        <section aria-labelledby="log-waste-heading" class="border-b border-slate-200 pb-8 dark:border-slate-800">
+            <div class="mb-5">
+                <h3 id="log-waste-heading" class="text-lg font-medium text-slate-900 dark:text-white">Log waste</h3>
+                <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Add the amount, its destination, and any earnings received.</p>
+            </div>
+
+            <form wire:submit="logWaste" class="space-y-5">
+                <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                    <div class="space-y-2">
+                        <label for="waste-weight" class="block text-sm font-medium text-slate-700 dark:text-slate-300">Weight (kg)</label>
                         <input
+                            id="waste-weight"
                             type="number"
                             wire:model.live="weightKg"
                             step="0.1"
                             min="0"
-                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-600 dark:bg-slate-700"
+                            aria-describedby="@error('weightKg') waste-weight-error @enderror"
+                            @class([
+                                'input',
+                                'border-rose-500 focus:border-rose-500 focus:ring-rose-500/20' => $errors->has('weightKg'),
+                            ])
                             placeholder="0.0"
                         >
                         @error('weightKg')
-                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            <p id="waste-weight-error" class="text-sm text-rose-600 dark:text-rose-400">{{ $message }}</p>
                         @enderror
                     </div>
-                    
-                    <div>
-                        <label class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Type</label>
-                        <select
-                            wire:model.live="type"
-                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-600 dark:bg-slate-700"
-                        >
-                            @foreach($types as $value => $label)
+
+                    <div class="space-y-2">
+                        <label for="waste-type" class="block text-sm font-medium text-slate-700 dark:text-slate-300">Destination</label>
+                        <select id="waste-type" wire:model.live="type" class="input">
+                            @foreach ($types as $value => $label)
                                 <option value="{{ $value }}">{{ $label }}</option>
                             @endforeach
                         </select>
                     </div>
-                    
-                    <div>
-                        <label class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Earnings (₹)</label>
+
+                    <div class="space-y-2">
+                        <label for="waste-earnings" class="block text-sm font-medium text-slate-700 dark:text-slate-300">Earnings (₹)</label>
                         <input
+                            id="waste-earnings"
                             type="number"
                             wire:model.live="earnings"
                             step="0.01"
                             min="0"
-                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-600 dark:bg-slate-700"
+                            aria-describedby="@error('earnings') waste-earnings-error @enderror"
+                            @class([
+                                'input',
+                                'border-rose-500 focus:border-rose-500 focus:ring-rose-500/20' => $errors->has('earnings'),
+                            ])
                             placeholder="0.00"
                         >
                         @error('earnings')
-                            <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            <p id="waste-earnings-error" class="text-sm text-rose-600 dark:text-rose-400">{{ $message }}</p>
                         @enderror
                     </div>
                 </div>
 
-                <button
-                    type="submit"
-                    wire:loading.attr="disabled"
-                    class="w-full rounded-xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50"
-                >
-                    <span wire:loading>Logging...</span>
-                    <span wire:loading.remove>Log Waste</span>
-                </button>
+                <div class="flex flex-wrap items-center gap-3">
+                    <button type="submit" wire:loading.attr="disabled" wire:target="logWaste" class="btn-primary disabled:cursor-wait disabled:opacity-60">
+                        <span wire:loading.remove wire:target="logWaste">Log waste</span>
+                        <span wire:loading wire:target="logWaste">Logging…</span>
+                    </button>
+                </div>
             </form>
-        </div>
+        </section>
 
-        <!-- Waste Transactions -->
-        <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-            <h3 class="mb-4 text-lg font-semibold">Waste History</h3>
-            
-            @if(empty($transactions))
-                <div class="text-center py-8 text-slate-500 dark:text-slate-400">
-                    No waste transactions recorded yet
-                </div>
-            @else
-                <div class="space-y-3">
-                    @foreach($transactions as $transaction)
-                        <div class="flex items-center justify-between rounded-xl border border-slate-200 p-4 dark:border-slate-700">
-                            <div>
-                                <p class="font-semibold text-slate-900 dark:text-slate-100">{{ $transaction['weight_kg'] }} kg</p>
-                                <p class="text-sm text-slate-600 dark:text-slate-400">{{ $transaction['type_label'] }}</p>
-                                <p class="text-xs text-slate-500 dark:text-slate-500">{{ $transaction['date'] }}</p>
-                            </div>
-                            <div class="text-right">
-                                @if($transaction['earnings'] > 0)
-                                    <p class="font-semibold text-emerald-600">₹{{ number_format($transaction['earnings'], 2) }}</p>
-                                @endif
-                            </div>
+        <section aria-labelledby="waste-history-heading">
+            <div class="mb-4">
+                <h3 id="waste-history-heading" class="text-lg font-medium text-slate-900 dark:text-white">Waste history</h3>
+                <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Recent waste records and any reported earnings.</p>
+            </div>
+
+            <div class="divide-y divide-slate-200 border-y border-slate-200 dark:divide-slate-800 dark:border-slate-800">
+                @forelse ($transactions as $transaction)
+                    <article wire:key="waste-transaction-{{ $transaction['id'] }}" class="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <p class="font-medium text-slate-900 dark:text-white">{{ $transaction['weight_kg'] }} kg</p>
+                            <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">{{ $transaction['type_label'] }}</p>
+                            <p class="mt-1 text-xs tabular-nums text-slate-500 dark:text-slate-500">{{ $transaction['date'] }}</p>
                         </div>
-                    @endforeach
-                </div>
-            @endif
-        </div>
+                        @if ($transaction['earnings'] > 0)
+                            <p class="font-medium tabular-nums text-emerald-700 dark:text-emerald-400">₹{{ number_format($transaction['earnings'], 2) }}</p>
+                        @endif
+                    </article>
+                @empty
+                    <div class="py-10 text-center">
+                        <p class="text-base font-medium text-slate-800 dark:text-slate-200">No waste recorded yet</p>
+                        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Your waste records will appear here after you log one.</p>
+                    </div>
+                @endforelse
+            </div>
+        </section>
     </div>
 </div>

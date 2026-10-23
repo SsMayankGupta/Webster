@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Events\QrRedeemed;
 use App\Exceptions\RedemptionRejectedException;
 use App\Livewire\StudentPortal;
 use App\Models\LeaveRequest;
@@ -11,6 +12,8 @@ use App\Models\User;
 use App\Services\QrTokenService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Broadcast;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -46,6 +49,63 @@ class PortalQrTest extends TestCase
         $this->assertSame($booking->fresh()->assigned_lane, $claims['lane']);
         $this->assertSame(60, $claims['exp'] - $claims['iat']);
         $this->assertNotEmpty($component->get('qrSvg'));
+    }
+
+    public function test_student_portal_uses_the_selected_pusher_websocket_configuration(): void
+    {
+        [$student] = $this->bookedMeal(now()->addHours(2));
+        config([
+            'broadcasting.default' => 'pusher',
+            'broadcasting.connections.pusher.driver' => 'pusher',
+            'broadcasting.connections.pusher.key' => 'public-app-key',
+            'broadcasting.connections.pusher.options.cluster' => 'ap2',
+        ]);
+
+        $this->actingAs($student, 'student');
+
+        Livewire::test(StudentPortal::class)
+            ->assertSet('state.broadcasting.key', 'public-app-key')
+            ->assertSet('state.broadcasting.host', 'ws-ap2.pusher.com')
+            ->assertSet('state.broadcasting.port', 443)
+            ->assertSet('state.broadcasting.scheme', 'https')
+            ->assertSet('state.broadcasting.private_channel', 'private-App.Models.User.'.$student->id);
+    }
+
+    public function test_student_can_authorize_only_their_own_private_broadcast_channel(): void
+    {
+        [$student] = $this->bookedMeal(now()->addHours(2));
+        config([
+            'broadcasting.default' => 'pusher',
+            'broadcasting.connections.pusher.driver' => 'pusher',
+            'broadcasting.connections.pusher.key' => 'public-app-key',
+            'broadcasting.connections.pusher.secret' => 'private-app-secret',
+            'broadcasting.connections.pusher.app_id' => 'app-id',
+        ]);
+        Broadcast::purge('pusher');
+        Broadcast::channel('App.Models.User.{id}', fn ($user, $id): bool => (int) $user->id === (int) $id);
+
+        $this->actingAs($student, 'student')
+            ->postJson('/broadcasting/auth', [
+                'socket_id' => '123.456',
+                'channel_name' => 'private-App.Models.User.'.$student->id,
+            ])
+            ->assertOk()
+            ->assertJsonStructure(['auth']);
+
+        $this->actingAs($student, 'student')
+            ->postJson('/broadcasting/auth', [
+                'socket_id' => '123.456',
+                'channel_name' => 'private-App.Models.User.999999',
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_guest_cannot_authorize_a_student_private_broadcast_channel(): void
+    {
+        $this->postJson('/broadcasting/auth', [
+            'socket_id' => '123.456',
+            'channel_name' => 'private-App.Models.User.1',
+        ])->assertUnauthorized();
     }
 
     public function test_qr_is_not_issued_before_the_meal_locks(): void
@@ -114,6 +174,8 @@ class PortalQrTest extends TestCase
         $jwt = $this->issueToken($student);
         $claims = app(QrTokenService::class)->verify($jwt);
 
+        Event::fake([QrRedeemed::class]);
+
         $first = $this->actingAs($contractor, 'contractor')->postJson('/api/v1/scans/redeem', [
             'token' => $jwt,
             'lane' => $claims['lane'],
@@ -124,6 +186,11 @@ class PortalQrTest extends TestCase
         $first->assertJsonPath('lane', $claims['lane']);
         $this->assertDatabaseHas('meal_consumptions', ['booking_id' => $booking->id]);
         $this->assertDatabaseHas('meal_bookings', ['id' => $booking->id, 'status' => 'consumed']);
+        Event::assertDispatched(
+            QrRedeemed::class,
+            fn (QrRedeemed $event): bool => $event->studentId === $student->id
+                && $event->consumption->booking_id === $booking->id,
+        );
 
         $second = $this->actingAs($contractor, 'contractor')->postJson('/api/v1/scans/redeem', [
             'token' => $jwt,
@@ -132,6 +199,56 @@ class PortalQrTest extends TestCase
         ]);
 
         $second->assertStatus(409);
+    }
+
+    public function test_student_portal_refreshes_after_a_valid_redemption_event(): void
+    {
+        [$student, $booking] = $this->bookedMeal(now()->addHours(2));
+        $booking->update(['status' => 'consumed']);
+        $booking->consumption()->create([
+            'mode' => 'online',
+            'consumed_at' => now(),
+        ]);
+
+        $this->actingAs($student, 'student');
+
+        Livewire::test(StudentPortal::class)
+            ->dispatch('qr-redeemed', bookingId: $booking->id)
+            ->assertSet('state.active_booking', null)
+            ->assertSet('qrSvg', null)
+            ->assertSet('qrError', 'Meal checked in at the counter. Enjoy your meal!');
+    }
+
+    public function test_student_portal_ignores_redemption_events_for_unconsumed_bookings(): void
+    {
+        [$student, $booking] = $this->bookedMeal(now()->addHours(2));
+
+        $this->actingAs($student, 'student');
+
+        Livewire::test(StudentPortal::class)
+            ->dispatch('qr-redeemed', bookingId: $booking->id)
+            ->assertSet('state.active_booking.booking_id', $booking->id)
+            ->assertSet('qrError', null);
+    }
+
+    public function test_qr_refresh_reconciles_portal_state_after_a_missed_realtime_event(): void
+    {
+        [$student, $booking] = $this->bookedMeal(now()->addHours(2));
+
+        $this->actingAs($student, 'student');
+
+        $component = Livewire::test(StudentPortal::class);
+
+        $booking->update(['status' => 'consumed']);
+        $booking->consumption()->create([
+            'mode' => 'online',
+            'consumed_at' => now(),
+        ]);
+
+        $component
+            ->call('refreshQrToken')
+            ->assertSet('state.active_booking', null)
+            ->assertSet('qrSvg', null);
     }
 
     public function test_scanning_at_the_wrong_lane_is_rejected(): void

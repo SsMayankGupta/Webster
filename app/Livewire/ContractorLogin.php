@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
+use Livewire\Attributes\Layout;
 use Livewire\Component;
 
 class ContractorLogin extends Component
@@ -62,7 +63,7 @@ class ContractorLogin extends Component
         $otpCode = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
         Cache::put('otp:'.$this->email, $otpCode, now()->addMinutes(10));
 
-        dump("Testing PurposeOTP: ".$otpCode);
+        dump('Testing PurposeOTP: '.$otpCode);
 
         // $this->sendOtpViaEmail($user, $otpCode);
         // $this->sendOtpViaSms($user, $otpCode);
@@ -74,21 +75,21 @@ class ContractorLogin extends Component
         $this->dispatch('portal-toast', message: 'OTP sent to your email and phone.', type: 'success');
     }
 
-    private function sendOtpViaEmail(User $user, string $otp): void
-    {
-        Mail::raw("Your OTP for ZeroWasteMess.io Contractor Portal is: {$otp}\n\nThis code is valid for 10 minutes.", function ($message) use ($user) {
-            $message->to($user->email)->subject('Your Login OTP');
-        });
-    }
+    // private function sendOtpViaEmail(User $user, string $otp): void
+    // {
+    //     Mail::raw("Your OTP for ZeroWasteMess.io Contractor Portal is: {$otp}\n\nThis code is valid for 10 minutes.", function ($message) use ($user) {
+    //         $message->to($user->email)->subject('Your Login OTP');
+    //     });
+    // }
 
-    private function sendOtpViaSms(User $user, string $otp): void
-    {
-        if ($user->phone) {
-            // Integration with SMS gateway (Twilio, MSG91, etc.)
-            // For now, we'll log it - in production, integrate with actual SMS service
-            \Log::info("SMS OTP for {$user->phone}: {$otp}");
-        }
-    }
+    // private function sendOtpViaSms(User $user, string $otp): void
+    // {
+    //     if ($user->phone) {
+    //         // Integration with SMS gateway (Twilio, MSG91, etc.)
+    //         // For now, we'll log it - in production, integrate with actual SMS service
+    //         \Log::info("SMS OTP for {$user->phone}: {$otp}");
+    //     }
+    // }
 
     public function verifyOtp(): void
     {
@@ -138,9 +139,9 @@ class ContractorLogin extends Component
         $this->sendOtp();
     }
 
+    #[Layout('layouts.guest')]
     public function render()
     {
-        return view('livewire.contractor-login')
-            ->layout('layouts.guest');
+        return view('livewire.contractor-login');
     }
 }

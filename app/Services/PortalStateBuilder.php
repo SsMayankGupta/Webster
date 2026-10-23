@@ -27,6 +27,11 @@ class PortalStateBuilder
     public function build(User $student, ?string $billingMonth = null): array
     {
         $now = CarbonImmutable::now();
+        $broadcastConnection = (string) config('broadcasting.default');
+        $broadcastConfig = config("broadcasting.connections.{$broadcastConnection}", []);
+        $broadcastOptions = $broadcastConfig['options'] ?? [];
+        $broadcastDriver = $broadcastConfig['driver'] ?? $broadcastConnection;
+        $broadcastCluster = $broadcastOptions['cluster'] ?? null;
         $start = $now->startOfDay();
         $days = [];
 
@@ -115,10 +120,14 @@ class PortalStateBuilder
                 'fingerprint' => $this->qr->publicKeyFingerprint(),
             ],
             'broadcasting' => [
-                'key' => config('broadcasting.connections.reverb.key'),
-                'host' => config('broadcasting.connections.reverb.options.host', 'localhost'),
-                'port' => (int) config('broadcasting.connections.reverb.options.port', 8080),
-                'scheme' => config('broadcasting.connections.reverb.options.scheme', 'http'),
+                'key' => $broadcastConfig['key'] ?? null,
+                'host' => $broadcastDriver === 'pusher' && filled($broadcastCluster)
+                    ? "ws-{$broadcastCluster}.pusher.com"
+                    : ($broadcastOptions['host'] ?? null),
+                'port' => (int) ($broadcastDriver === 'pusher' ? 443 : ($broadcastOptions['port'] ?? 8080)),
+                'scheme' => $broadcastDriver === 'pusher'
+                    ? 'https'
+                    : ($broadcastOptions['scheme'] ?? 'http'),
                 'private_channel' => 'private-App.Models.User.'.$student->id,
                 'public_channel' => 'meals',
             ],

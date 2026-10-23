@@ -8,9 +8,13 @@ use App\Models\Menu;
 use App\Services\NutritionApiService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\Layout;
 use Livewire\Attributes\On;
+use Livewire\Attributes\Title;
 use Livewire\Component;
 
+#[Layout('layouts.contractor')]
+#[Title('Menu Builder')]
 class ContractorMenuBuilder extends Component
 {
     public string $mode = 'ai';
@@ -30,6 +34,10 @@ class ContractorMenuBuilder extends Component
 
     public ?int $selectedWeek = null;
 
+    public array $scheduledMenuDates = [];
+
+    public bool $scheduleCreatedSuccessfully = false;
+
     public array $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
     public array $mealTypes = ['breakfast', 'lunch', 'snacks', 'dinner'];
@@ -40,6 +48,7 @@ class ContractorMenuBuilder extends Component
     {
         $this->loadPastWeeks();
         $this->initializeSchedule();
+        $this->loadScheduledMenuDates();
     }
 
     #[On('contractor-logged-in')]
@@ -47,6 +56,28 @@ class ContractorMenuBuilder extends Component
     {
         $this->loadPastWeeks();
         $this->initializeSchedule();
+        $this->loadScheduledMenuDates();
+    }
+
+    private function nextMenuWeekStart(): Carbon
+    {
+        return Carbon::now()->startOfWeek()->addWeek();
+    }
+
+    private function loadScheduledMenuDates(): void
+    {
+        $startDate = $this->nextMenuWeekStart();
+        $endDate = $startDate->copy()->addDays(6)->endOfDay();
+
+        $this->scheduledMenuDates = Menu::query()
+            ->whereBetween('serve_at', [$startDate, $endDate])
+            ->orderBy('serve_at')
+            ->get(['serve_at'])
+            ->map(fn (Menu $menu): string => $menu->serve_at->toDateString())
+            ->unique()
+            ->map(fn (string $date): string => Carbon::parse($date)->format('l, F j'))
+            ->values()
+            ->all();
     }
 
     private function loadPastWeeks(): void
@@ -194,7 +225,13 @@ class ContractorMenuBuilder extends Component
             ->whereDate('serve_at', '<=', $startDate->copy()->addDays(6)->toDateString())
             ->get();
 
-        $newStartDate = now()->startOfWeek()->addWeek();
+        if ($menus->isEmpty()) {
+            $this->dispatch('portal-toast', message: 'No menus were found for the selected week.', type: 'error');
+
+            return;
+        }
+
+        $newStartDate = $this->nextMenuWeekStart();
 
         foreach ($menus as $menu) {
             $daysDiff = $menu->serve_at->diffInDays($startDate);
@@ -216,6 +253,8 @@ class ContractorMenuBuilder extends Component
             broadcast(new MenuUpdated($newMenu));
         }
 
+        $this->loadScheduledMenuDates();
+        $this->scheduleCreatedSuccessfully = true;
         $this->dispatch('portal-toast', message: 'Menu cloned successfully for next week!', type: 'success');
     }
 
@@ -230,8 +269,9 @@ class ContractorMenuBuilder extends Component
         }
 
         $timeSlots = MealTimeSlot::all()->keyBy('meal_type');
-        $startDate = now()->startOfWeek()->addWeek();
+        $startDate = $this->nextMenuWeekStart();
         $nutritionService = app(NutritionApiService::class);
+        $createdMenus = 0;
 
         foreach ($this->days as $dayIndex => $day) {
             foreach ($this->mealTypes as $mealType) {
@@ -266,16 +306,28 @@ class ContractorMenuBuilder extends Component
                 ]);
 
                 broadcast(new MenuUpdated($menu));
+                $createdMenus++;
             }
         }
 
+        if ($createdMenus === 0) {
+            $this->dispatch('portal-toast', message: 'Add at least one meal before saving the schedule.', type: 'error');
+
+            return;
+        }
+
+        $this->loadScheduledMenuDates();
+        $this->scheduleCreatedSuccessfully = true;
         $this->dispatch('portal-toast', message: 'Schedule saved successfully!', type: 'success');
     }
 
     public function render()
     {
-        return view('livewire.contractor-menu-builder')
-            ->layout('layouts.contractor')
-            ->title('Menu Builder');
+        $menuWeekStart = $this->nextMenuWeekStart();
+
+        return view('livewire.contractor-menu-builder', [
+            'menuWeekStart' => $menuWeekStart,
+            'menuWeekEnd' => $menuWeekStart->copy()->addDays(6),
+        ]);
     }
 }

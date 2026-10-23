@@ -15,6 +15,7 @@ export default {
             fontFamily: {
                 sans: ['Inter', '"Plus Jakarta Sans"', ...defaultTheme.fontFamily.sans],
                 display: ['"Plus Jakarta Sans"', ...defaultTheme.fontFamily.sans],
+                lora: ['Lora', ...defaultTheme.fontFamily.serif],
                 mono: ['"JetBrains Mono"', ...defaultTheme.fontFamily.mono],
             },
             colors: {

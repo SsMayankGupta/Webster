@@ -216,7 +216,7 @@ export function portalRoot() {
                     }
 
                     if (event === 'qr.redeemed') {
-                        window.Livewire?.dispatch('qr-redeemed');
+                        window.Livewire?.dispatch('qr-redeemed', { bookingId: data.booking_id });
                     }
                 },
             });

@@ -2,40 +2,54 @@
 @section('title', 'Counter Scanner - QR Redemption')
 
 @section('content')
-<div class="mx-auto max-w-3xl">
-    <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <div>
-            <h1 class="text-2xl font-semibold">Counter Scanner</h1>
-            <p class="text-sm text-slate-500">Scan a rotating ES256 token or paste a raw token / legacy jti.</p>
-        </div>
-        <div>
-            <label for="lane" class="block text-xs font-semibold uppercase tracking-wide text-slate-500">Counter lane</label>
-            <select id="lane" class="mt-1 rounded-lg border-slate-300 text-sm">
+<div class="font-lora">
+    <div class="mx-auto max-w-4xl space-y-8">
+        <header class="flex flex-col gap-4 border-b border-slate-200 pb-5 dark:border-slate-800 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-400">Daily operations</p>
+                <h2 class="mt-2 text-2xl font-medium tracking-tight text-slate-900 dark:text-white">Counter scanner</h2>
+                <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Scan a rotating ES256 token or enter a signed token or legacy ID.</p>
+            </div>
+            <div class="w-full sm:max-w-xs">
+                <label for="lane" class="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Counter lane</label>
+                <select id="lane" class="input">
                 @foreach ($lanes as $lane)
                     <option value="{{ $lane }}">Lane {{ $lane }}</option>
                 @endforeach
-            </select>
-        </div>
-    </div>
+                </select>
+            </div>
+        </header>
 
-    <div class="mb-4 rounded-2xl bg-white p-4 shadow">
-        <div class="mb-3 flex items-center justify-between gap-3">
-            <h2 class="font-medium">Camera scan</h2>
-            <span id="offlineStatus" class="rounded-full border border-slate-200 px-2.5 py-1 text-[11px] font-semibold text-slate-500">
-                Offline verifier idle
-            </span>
-        </div>
-        <div id="reader" class="mx-auto" style="width:320px"></div>
-    </div>
+        <section aria-labelledby="camera-scan-heading" class="border-t border-slate-300 pt-4 dark:border-slate-700">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h3 id="camera-scan-heading" class="text-xl font-medium text-slate-900 dark:text-white">Camera scan</h3>
+                    <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Point the camera at the student’s check-in QR.</p>
+                </div>
+                <span id="offlineStatus" role="status" class="border-l-2 border-slate-300 pl-3 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                    Offline verifier idle
+                </span>
+            </div>
+            <div class="mt-5 flex min-h-64 items-center justify-center overflow-hidden border-y border-slate-200 bg-slate-50 py-4 dark:border-slate-800 dark:bg-slate-900/40">
+                <div id="reader" class="mx-auto max-w-full" style="width:320px"></div>
+            </div>
+        </section>
 
-    <div class="rounded-2xl bg-white p-4 shadow">
-        <h2 class="mb-2 font-medium">Manual redeem</h2>
-        <textarea id="token" rows="3" placeholder="Paste the signed JWT here, or use a legacy jti" class="mb-2 w-full rounded-lg border-slate-300 font-mono text-xs"></textarea>
-        <div class="flex flex-wrap gap-2">
-            <button onclick="redeem()" class="rounded-lg bg-emerald-600 px-4 py-2 font-semibold text-white">Verify &amp; redeem</button>
-            <button onclick="document.getElementById('token').value=''; document.getElementById('out').textContent=''" class="rounded-lg border border-slate-300 px-4 py-2 font-semibold text-slate-600">Clear</button>
-        </div>
-        <pre id="out" class="mt-3 overflow-x-auto rounded-lg bg-slate-950 p-3 text-xs text-emerald-300">Awaiting a scan…</pre>
+        <section aria-labelledby="manual-redeem-heading" class="border-t border-slate-300 pt-4 dark:border-slate-700">
+            <div>
+                <h3 id="manual-redeem-heading" class="text-xl font-medium text-slate-900 dark:text-white">Manual redemption</h3>
+                <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Use this if the camera is unavailable. Tokens are verified before redemption.</p>
+            </div>
+            <div class="mt-4 space-y-3">
+                <label for="token" class="block text-sm font-medium text-slate-700 dark:text-slate-300">Signed token or legacy ID</label>
+                <textarea id="token" rows="3" placeholder="Paste the signed JWT here, or use a legacy jti" class="input font-mono text-xs"></textarea>
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="redeem()" class="btn-primary">Verify &amp; redeem</button>
+                    <button onclick="document.getElementById('token').value=''; document.getElementById('out').textContent=''" class="btn-ghost border border-slate-200 dark:border-slate-700">Clear</button>
+                </div>
+                <pre id="out" role="status" aria-live="polite" class="overflow-x-auto border-l-2 border-slate-300 bg-slate-50 p-4 font-mono text-xs leading-5 text-slate-700 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-300">Awaiting a scan…</pre>
+            </div>
+        </section>
     </div>
 </div>
 
@@ -166,7 +180,7 @@
             try {
                 const claims = await verifyOffline(token);
                 status.textContent = 'Offline verified · lane ' + claims.lane + ' · ' + new Date(claims.exp * 1000).toLocaleTimeString();
-                status.className = 'rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700';
+                status.className = 'border-l-2 border-emerald-600 pl-3 text-sm text-emerald-700 dark:text-emerald-400';
 
                 if (claims.lane && String(claims.lane).toUpperCase() !== lane.toUpperCase()) {
                     output('WRONG LANE — token is pinned to lane ' + claims.lane + '. Switch the counter lane and rescan.');
@@ -175,7 +189,7 @@
                 }
             } catch (error) {
                 status.textContent = 'Offline verify failed: ' + error.message;
-                status.className = 'rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-700';
+                status.className = 'border-l-2 border-rose-600 pl-3 text-sm text-rose-700 dark:text-rose-400';
                 output('Offline verification failed: ' + error.message);
 
                 return;

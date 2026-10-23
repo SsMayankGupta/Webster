@@ -414,6 +414,8 @@ class StudentPortal extends Component
         $booking = app(MealBookingService::class)->activeBooking($student);
 
         if ($booking === null) {
+            $this->loadPortalState($student);
+
             $approvedLeaves = app(ApprovedLeaveService::class)->rangesBetween(
                 (int) $student->id,
                 now()->subHours(2),
@@ -468,14 +470,25 @@ class StudentPortal extends Component
     }
 
     #[On('qr-redeemed')]
-    public function onQrRedeemed(): void
+    public function onQrRedeemed(int $bookingId): void
     {
         $student = $this->currentStudent();
 
-        if ($student !== null) {
-            $this->loadPortalState($student);
+        if ($student === null) {
+            return;
         }
 
+        $wasRedeemedForStudent = $student->mealBookings()
+            ->whereKey($bookingId)
+            ->where('status', 'consumed')
+            ->whereHas('consumption')
+            ->exists();
+
+        if (! $wasRedeemedForStudent) {
+            return;
+        }
+
+        $this->loadPortalState($student);
         $this->qrSvg = null;
         $this->qrToken = null;
         $this->qrExpiresAt = null;
