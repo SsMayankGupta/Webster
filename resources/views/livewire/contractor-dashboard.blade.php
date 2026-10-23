@@ -29,8 +29,8 @@
             <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
                 <div class="flex items-center justify-between">
                     <div>
-                        <p class="text-sm text-slate-600 dark:text-slate-400">Pending Waste Reports</p>
-                        <p class="mt-2 text-3xl font-bold text-slate-900 dark:text-slate-100">{{ $stats['pending_waste_reports'] }}</p>
+                        <p class="text-sm text-slate-600 dark:text-slate-400">Total Waste Reports</p>
+                        <p class="mt-2 text-3xl font-bold text-slate-900 dark:text-slate-100">{{ $stats['total_waste_reports'] }}</p>
                     </div>
                     <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-rose-100 text-rose-600">
                         <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
@@ -80,14 +80,14 @@
                     @foreach($recentWaste as $waste)
                         <div class="flex items-center justify-between rounded-xl border border-slate-200 p-4 dark:border-slate-700">
                             <div>
-                                <p class="font-semibold text-slate-900 dark:text-slate-100">{{ ucfirst($waste['meal_type']) }}</p>
+                                <p class="font-semibold text-slate-900 dark:text-slate-100">{{ $waste['type_label'] }}</p>
                                 <p class="text-sm text-slate-600 dark:text-slate-400">{{ $waste['date'] }}</p>
                             </div>
                             <div class="text-right">
-                                <p class="font-semibold text-slate-900 dark:text-slate-100">{{ $waste['amount_kg'] }} kg</p>
-                                <span class="rounded-full px-2 py-0.5 text-xs font-medium {{ $waste['status'] === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700' }}">
-                                    {{ $waste['status'] }}
-                                </span>
+                                <p class="font-semibold text-slate-900 dark:text-slate-100">{{ $waste['weight_kg'] }} kg</p>
+                                @if($waste['earnings'] > 0)
+                                    <p class="text-sm text-emerald-600">₹{{ number_format($waste['earnings'], 2) }}</p>
+                                @endif
                             </div>
                         </div>
                     @endforeach

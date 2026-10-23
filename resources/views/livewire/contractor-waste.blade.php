@@ -81,9 +81,6 @@
                                 @if($transaction['earnings'] > 0)
                                     <p class="font-semibold text-emerald-600">₹{{ number_format($transaction['earnings'], 2) }}</p>
                                 @endif
-                                <span class="rounded-full px-2 py-0.5 text-xs font-medium {{ $transaction['status'] === 'verified' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700' }}">
-                                    {{ $transaction['status'] }}
-                                </span>
                             </div>
                         </div>
                     @endforeach

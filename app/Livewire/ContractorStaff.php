@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
@@ -15,6 +16,12 @@ class ContractorStaff extends Component
     public array $staff = [];
 
     public function mount(): void
+    {
+        $this->loadStaff();
+    }
+
+    #[On('contractor-logged-in')]
+    public function onContractorLoggedIn(): void
     {
         $this->loadStaff();
     }

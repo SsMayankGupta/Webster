@@ -21,6 +21,13 @@ class ContractorDashboard extends Component
 
     public array $recentWaste = [];
 
+    public array $wasteTypes = [
+        'compost' => 'Compost',
+        'biogas' => 'Biogas',
+        'donation' => 'Donation',
+        'sale' => 'Sale',
+    ];
+
     public function mount(): void
     {
         $this->loadDashboardData();
@@ -58,9 +65,8 @@ class ContractorDashboard extends Component
         $this->stats = [
             'total_meals_today' => $todayMenus->count(),
             'headcount' => $headcount,
-            'pending_waste_reports' => WasteTransaction::query()
+            'total_waste_reports' => WasteTransaction::query()
                 ->where('contractor_id', $contractor->id)
-                ->where('status', 'pending')
                 ->count(),
         ];
 
@@ -76,9 +82,10 @@ class ContractorDashboard extends Component
         $this->recentWaste = $waste->map(fn (WasteTransaction $waste): array => [
             'id' => $waste->id,
             'date' => $waste->created_at->format('d M Y'),
-            'meal_type' => $waste->meal_type,
-            'amount_kg' => $waste->amount_kg,
-            'status' => $waste->status,
+            'weight_kg' => $waste->weight_kg,
+            'type' => $waste->type,
+            'type_label' => $this->wasteTypes[$waste->type] ?? $waste->type,
+            'earnings' => $waste->earnings,
         ])->values()->all();
     }
 

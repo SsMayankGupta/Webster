@@ -6,6 +6,7 @@ use App\Models\LeaveRequest;
 use App\Services\RebateService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
@@ -18,6 +19,12 @@ class ContractorLeave extends Component
     public string $filter = 'all';
 
     public function mount(): void
+    {
+        $this->loadLeaves();
+    }
+
+    #[On('contractor-logged-in')]
+    public function onContractorLoggedIn(): void
     {
         $this->loadLeaves();
     }

@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\Ticket;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
@@ -16,6 +17,12 @@ class ContractorTicket extends Component
     public string $filter = 'all';
 
     public function mount(): void
+    {
+        $this->loadTickets();
+    }
+
+    #[On('contractor-logged-in')]
+    public function onContractorLoggedIn(): void
     {
         $this->loadTickets();
     }

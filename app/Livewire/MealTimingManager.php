@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\MealTimeSlot;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 class MealTimingManager extends Component
@@ -11,6 +12,12 @@ class MealTimingManager extends Component
     public array $timeSlots = [];
 
     public function mount(): void
+    {
+        $this->loadTimeSlots();
+    }
+
+    #[On('contractor-logged-in')]
+    public function onContractorLoggedIn(): void
     {
         $this->loadTimeSlots();
     }

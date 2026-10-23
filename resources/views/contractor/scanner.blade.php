@@ -41,7 +41,7 @@
 
 <script src="https://unpkg.com/html5-qrcode" defer></script>
 <script>
-    const scannerConfig = @json([
+    const scannerConfig = @js([
         'redeemUrl' => route('api.scans.redeem'),
         'publicKeyUrl' => route('portal.qr.public-key'),
         'issuer' => config('mess.qr.issuer'),

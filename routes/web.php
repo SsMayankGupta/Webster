@@ -4,6 +4,7 @@ use App\Http\Controllers\Portal\PortalMealController;
 use App\Http\Controllers\Portal\PortalQrController;
 use App\Http\Controllers\ProfileController;
 use App\Livewire\StudentPortal;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', StudentPortal::class)->name('home');
@@ -19,7 +20,7 @@ Route::prefix('portal')->name('portal.')->middleware('auth:student')->group(func
 });
 
 Route::get('/dashboard', function () {
-    $user = auth()->user();
+    $user = Auth::user();
     if ($user?->role === 'contractor') {
         return redirect()->route('contractor.dashboard');
     }

@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Events\MenuUpdated;
 use App\Models\Menu;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 class MenuUpdate extends Component
@@ -14,6 +15,12 @@ class MenuUpdate extends Component
     public string $selectedWeek = 'current';
 
     public function mount(): void
+    {
+        $this->loadMenus();
+    }
+
+    #[On('contractor-logged-in')]
+    public function onContractorLoggedIn(): void
     {
         $this->loadMenus();
     }

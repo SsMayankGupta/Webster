@@ -59,7 +59,6 @@ class ContractorWaste extends Component
             'type' => $transaction->type,
             'type_label' => $this->types[$transaction->type] ?? $transaction->type,
             'earnings' => $transaction->earnings,
-            'status' => $transaction->status,
         ])->values()->all();
     }
 

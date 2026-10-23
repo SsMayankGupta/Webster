@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" x-data="{ dark: localStorage.getItem('theme') === 'dark', sidebar: true }" x-init="$watch('dark', v => { localStorage.setItem('theme', v ? 'dark' : 'light'); document.documentElement.classList.toggle('dark', v); }); if (dark) document.documentElement.classList.add('dark');">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" x-data="{ dark: localStorage.getItem('theme') === 'dark', sidebar: true }" x-init="$watch('dark', v => { localStorage.setItem('theme', v ? 'dark' : 'light'); document.documentElement.classList.toggle('dark', v); }); if (dark) document.documentElement.classList.add('dark'); @if(auth()->guard('contractor')->check()) $wire.dispatch('contractor-logged-in', { userId: {{ auth()->guard('contractor')->id() }} }); @endif">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'ZeroWasteMess.io') - Contractor</title>
+    <title>@yield('title', $title ?? 'ZeroWasteMess.io') - Contractor</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -12,9 +12,10 @@
     @livewireStyles
 </head>
 <body class="font-sans antialiased bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-    <div class="flex min-h-screen">
-        <!-- Sidebar -->
-        <aside :class="sidebar ? 'w-64' : 'w-20'" class="sticky top-0 h-screen shrink-0 border-r border-slate-200/70 bg-white transition-all duration-300 dark:border-slate-800 dark:bg-slate-900">
+    @if(auth()->guard('contractor')->check())
+        <div class="flex min-h-screen">
+            <!-- Sidebar -->
+            <aside :class="sidebar ? 'w-64' : 'w-20'" class="sticky top-0 h-screen shrink-0 border-r border-slate-200/70 bg-white transition-all duration-300 dark:border-slate-800 dark:bg-slate-900">
             <div class="flex h-16 items-center justify-between px-4">
                 <div class="flex items-center gap-2 overflow-hidden">
                     <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-white shadow-glow">
@@ -75,7 +76,7 @@
         <div class="flex min-w-0 flex-1 flex-col">
             <header class="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200/70 bg-white/80 px-6 backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
                 <div>
-                    <h1 class="font-display text-lg font-bold">@yield('title', 'Dashboard')</h1>
+                    <h1 class="font-display text-lg font-bold">@yield('title', $title ?? 'Dashboard')</h1>
                 </div>
                 <div class="flex items-center gap-2">
                     <button @click="dark = !dark" class="btn-ghost !px-2.5 !py-2" aria-label="Toggle theme">
@@ -101,10 +102,73 @@
                         </ul>
                     </div>
                 @endif
+                {{ $slot ?? '' }}
                 @yield('content')
             </main>
         </div>
     </div>
+    @else
+        <!-- Guest Section -->
+        <div class="min-h-screen bg-gradient-to-br from-purple-600 via-pink-500 to-indigo-600">
+            <div class="flex min-h-screen items-center justify-center p-4">
+                <div class="w-full max-w-4xl">
+                    <div class="rounded-3xl bg-white/95 shadow-2xl backdrop-blur-xl p-8 md:p-12">
+                        <div class="text-center mb-8">
+                            <div class="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg">
+                                <svg class="h-10 w-10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                                </svg>
+                            </div>
+                            <h1 class="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">ZeroWasteMess.io</h1>
+                            <p class="text-lg text-gray-600">Contractor Portal</p>
+                        </div>
+
+                        <div class="grid md:grid-cols-2 gap-8 mb-8">
+                            <div class="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-6 border border-indigo-100">
+                                <div class="flex items-center gap-3 mb-4">
+                                    <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600 text-white">
+                                        <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                        </svg>
+                                    </div>
+                                    <h3 class="text-xl font-bold text-gray-900">About Our System</h3>
+                                </div>
+                                <p class="text-gray-600 leading-relaxed">
+                                    ZeroWasteMess.io is a smart cafeteria management system designed to reduce food waste while providing efficient meal planning, real-time menu updates, and seamless student-contractor communication.
+                                </p>
+                            </div>
+
+                            <div class="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-6 border border-purple-100">
+                                <div class="flex items-center gap-3 mb-4">
+                                    <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-600 text-white">
+                                        <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                                        </svg>
+                                    </div>
+                                    <h3 class="text-xl font-bold text-gray-900">Secure Access</h3>
+                                </div>
+                                <p class="text-gray-600 leading-relaxed">
+                                    Our contractor portal requires secure authentication with OTP verification. Authorized contractors can access dashboard, menu management, headcount tracking, and more.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="text-center">
+                            <a href="{{ route('contractor.login') }}" class="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-8 py-4 text-base font-semibold text-white shadow-lg transition hover:from-indigo-700 hover:to-purple-700 hover:shadow-xl">
+                                <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
+                                </svg>
+                                Login to Contractor Portal
+                            </a>
+                            <p class="mt-4 text-sm text-gray-500">
+                                <a href="/" class="text-indigo-600 hover:text-indigo-800">← Back to Student Portal</a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
     @stack('scripts')
     @livewireScripts
     <script>

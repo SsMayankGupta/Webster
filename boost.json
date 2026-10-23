@@ -8,6 +8,7 @@
         "infer-conventions",
         "laravel-best-practices",
         "testing-best-practices",
+        "livewire-development",
         "tailwindcss-development"
     ]
 }

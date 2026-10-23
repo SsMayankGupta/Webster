@@ -32,8 +32,8 @@
         </dl>
 
         <div class="mt-6 flex flex-wrap gap-2 border-t border-slate-100 pt-5 dark:border-slate-800">
-            <a href="{{ route('student.dashboard') }}" class="btn-ghost !border !border-slate-200 dark:!border-slate-800">
-                Open classic portal
+            <a href="{{ route('home') }}" class="btn-ghost !border !border-slate-200 dark:!border-slate-800">
+                Back to student portal
             </a>
             <a href="{{ route('profile.edit') }}" class="btn-ghost !border !border-slate-200 dark:!border-slate-800">
                 Account settings
