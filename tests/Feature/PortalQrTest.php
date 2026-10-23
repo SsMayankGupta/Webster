@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Exceptions\RedemptionRejectedException;
 use App\Livewire\StudentPortal;
+use App\Models\LeaveRequest;
 use App\Models\MealBooking;
 use App\Models\Menu;
 use App\Models\User;
@@ -57,6 +58,52 @@ class PortalQrTest extends TestCase
             ->call('refreshQrToken')
             ->assertSet('qrSvg', null)
             ->assertSet('qrError', fn (?string $error): bool => str_contains((string) $error, 'Check-in opens'));
+    }
+
+    public function test_qr_is_not_issued_for_a_booking_during_approved_leave(): void
+    {
+        $this->travelTo(now()->startOfDay()->addHours(8));
+        [$student] = $this->bookedMeal(now()->addHours(2));
+        LeaveRequest::query()->create([
+            'student_id' => $student->id,
+            'from_date' => today()->toDateString(),
+            'to_date' => today()->toDateString(),
+            'status' => 'approved',
+        ]);
+
+        $this->actingAs($student, 'student');
+
+        Livewire::test(StudentPortal::class)
+            ->call('refreshQrToken')
+            ->assertSet('qrSvg', null)
+            ->assertSet('qrError', 'QR check-in is disabled for approved leave dates; no other active meal booking is available.');
+    }
+
+    public function test_previously_issued_qr_cannot_be_redeemed_during_approved_leave(): void
+    {
+        $this->travelTo(now()->startOfDay()->addHours(8));
+        [$student, $booking] = $this->bookedMeal(now()->addHours(2));
+        $jwt = $this->issueToken($student);
+        $claims = app(QrTokenService::class)->verify($jwt);
+
+        LeaveRequest::query()->create([
+            'student_id' => $student->id,
+            'from_date' => today()->toDateString(),
+            'to_date' => today()->toDateString(),
+            'status' => 'approved',
+        ]);
+
+        $response = $this->actingAs($this->contractor(), 'contractor')->postJson('/api/v1/scans/redeem', [
+            'token' => $jwt,
+            'lane' => $claims['lane'],
+        ]);
+
+        $response
+            ->assertConflict()
+            ->assertJsonPath('message', 'Meal check-in is disabled during approved leave.');
+
+        $this->assertDatabaseHas('meal_bookings', ['id' => $booking->id, 'status' => 'booked']);
+        $this->assertDatabaseMissing('meal_consumptions', ['booking_id' => $booking->id]);
     }
 
     public function test_a_booking_can_only_be_redeemed_once(): void

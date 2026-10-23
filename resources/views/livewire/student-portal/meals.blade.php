@@ -30,6 +30,8 @@
                             <h3 class="font-display text-lg font-bold">{{ $meal['meal_label'] }}</h3>
                             @if ($meal['is_consumed'])
                                 <span class="badge-success">Food consumed</span>
+                            @elseif ($meal['is_on_approved_leave'])
+                                <span class="badge-info">Approved leave</span>
                             @elseif ($meal['status'] === 'open')
                                 <span class="badge-success">Open</span>
                             @elseif ($meal['status'] === 'locked')
@@ -69,6 +71,8 @@
                         @endif
                         @if ($meal['is_consumed'])
                             <span class="badge-success">Done</span>
+                        @elseif ($meal['is_on_approved_leave'])
+                            <span class="badge-info">On approved leave</span>
                         @elseif ($meal['opted_in'])
                             <span class="badge-success">Opted in</span>
                         @else
@@ -84,6 +88,10 @@
                         @if ($meal['is_consumed'])
                             <div class="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
                                 <span class="font-semibold">You have taken this meal. It is complete and can no longer be changed.</span>
+                            </div>
+                        @elseif ($meal['is_on_approved_leave'])
+                            <div class="flex items-start gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2.5 text-xs text-indigo-800 dark:border-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-200">
+                                <span class="font-semibold">Your leave is approved for this date. Meal opt-in/out and QR check-in are unavailable. The daily rebate is shown in your leave history and statement.</span>
                             </div>
                         @elseif ($meal['can_manage'])
                             <div x-show="phase === 'open'" class="space-y-3">
@@ -207,6 +215,8 @@
                                             <h4 class="text-sm font-semibold text-slate-800 dark:text-slate-100">{{ $meal['meal_label'] }}</h4>
                                             @if ($meal['is_consumed'])
                                                 <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">Food consumed</span>
+                                            @elseif ($meal['is_on_approved_leave'])
+                                                <span class="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300">Approved leave</span>
                                             @else
                                                 <span @class([
                                                     'rounded-full px-2 py-0.5 text-[10px] font-semibold',
@@ -233,6 +243,10 @@
                                         <span class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
                                             <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span> Done
                                         </span>
+                                    @elseif ($meal['is_on_approved_leave'])
+                                        <span class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-indigo-700 dark:text-indigo-300">
+                                            <span class="h-1.5 w-1.5 rounded-full bg-indigo-500"></span> On approved leave
+                                        </span>
                                     @elseif ($meal['opted_in'])
                                         <span class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
                                             <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span> Opted in
@@ -253,7 +267,7 @@
                                         >
                                             {{ $meal['opted_in'] ? 'Opt out' : 'Opt in' }}
                                         </button>
-                                    @elseif ($day['is_today'] && ! $meal['is_consumed'])
+                                    @elseif ($day['is_today'] && ! $meal['is_consumed'] && ! $meal['is_on_approved_leave'])
                                         <span class="text-[10px] font-medium text-slate-400">Choice locked</span>
                                     @endif
                                 </div>

@@ -72,7 +72,15 @@
                             </p>
                             @if ($leave['rebate_paise'] > 0)
                                 <p class="mt-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                                    + ₹{{ number_format($leave['rebate_paise'] / 100, 2) }} rebate credited
+                                    ₹{{ number_format($leave['rebate_paise'] / 100, 2) }} rebate credited
+                                </p>
+                            @elseif ($leave['status'] === 'approved')
+                                <p class="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+                                    No additional rebate — these dates were already credited.
+                                </p>
+                            @elseif ($leave['estimated_rebate_paise'] > 0)
+                                <p class="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
+                                    Estimated rebate if approved: ₹{{ number_format($leave['estimated_rebate_paise'] / 100, 2) }}
                                 </p>
                             @endif
                         </div>

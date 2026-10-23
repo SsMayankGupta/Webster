@@ -7,12 +7,15 @@ use App\Exceptions\RedemptionRejectedException;
 use App\Models\MealBooking;
 use App\Models\MealConsumption;
 use App\Models\QrToken;
+use App\Models\User;
 use App\Support\SafeBroadcast;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 
 class QrRedemptionService
 {
+    public function __construct(private readonly ApprovedLeaveService $approvedLeaves) {}
+
     /**
      * Redeem a meal exactly once. The UNIQUE(booking_id) index on the
      * consumption ledger serialises concurrent scans.
@@ -26,6 +29,16 @@ class QrRedemptionService
     ): MealConsumption {
         try {
             $consumption = DB::transaction(function () use ($bookingId, $jti, $lane, $deviceId, $offline): MealConsumption {
+                $bookingCandidate = MealBooking::query()
+                    ->with('menu')
+                    ->find($bookingId);
+
+                if (! $bookingCandidate) {
+                    throw new RedemptionRejectedException('Booking not found.', 404);
+                }
+
+                User::query()->whereKey($bookingCandidate->student_id)->lockForUpdate()->firstOrFail();
+
                 $booking = MealBooking::query()
                     ->with('menu')
                     ->lockForUpdate()
@@ -41,6 +54,13 @@ class QrRedemptionService
 
                 if ($booking->status !== 'booked') {
                     throw new RedemptionRejectedException('This booking is not active.', 409);
+                }
+
+                if ($this->approvedLeaves->coversDate(
+                    (int) $booking->student_id,
+                    $booking->menu->serve_at,
+                )) {
+                    throw new RedemptionRejectedException('Meal check-in is disabled during approved leave.', 409);
                 }
 
                 if ($booking->menu->status === 'closed') {

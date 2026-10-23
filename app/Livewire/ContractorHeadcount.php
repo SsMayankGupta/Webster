@@ -15,11 +15,8 @@ class ContractorHeadcount extends Component
 {
     public array $menus = [];
 
-    public string $selectedDate = '';
-
     public function mount(): void
     {
-        $this->selectedDate = now()->format('Y-m-d');
         $this->loadMenus();
     }
 
@@ -34,8 +31,10 @@ class ContractorHeadcount extends Component
         $this->lockMeals();
 
         $menus = Menu::query()
-            ->whereDate('serve_at', '>=', now()->startOfDay())
-            ->whereDate('serve_at', '<=', now()->addDays(7)->endOfDay())
+            ->withCount([
+                'mealBookings as opted_in_count' => fn ($query) => $query->whereIn('status', ['booked', 'consumed']),
+            ])
+            ->whereDate('serve_at', today())
             ->orderBy('serve_at')
             ->get();
 
@@ -49,10 +48,7 @@ class ContractorHeadcount extends Component
             'status' => $menu->status,
             'is_locked' => $menu->is_locked,
             'headcount_locked' => $menu->headcount_locked,
-            'booked_count' => MealBooking::query()
-                ->where('menu_id', $menu->id)
-                ->where('status', 'booked')
-                ->count(),
+            'opted_in_count' => $menu->opted_in_count,
         ])->values()->all();
     }
 
@@ -75,12 +71,6 @@ class ContractorHeadcount extends Component
                 'headcount_locked' => $count,
             ]);
         }
-    }
-
-    public function filterByDate(string $date): void
-    {
-        $this->selectedDate = $date;
-        $this->loadMenus();
     }
 
     public function render()

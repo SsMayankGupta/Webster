@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\DB;
 
 class RebateService
 {
+    public function __construct(private readonly ApprovedLeaveService $approvedLeaves) {}
+
     /**
      * Approve a leave request and post an append-only rebate in integer paise.
      */
@@ -22,8 +24,14 @@ class RebateService
                 return $locked;
             }
 
-            $days = (int) $locked->from_date->diffInDays($locked->to_date) + 1;
-            $paise = $days * (int) config('mess.rebate_per_day_paise');
+            User::query()->whereKey($locked->student_id)->lockForUpdate()->firstOrFail();
+            $approvedRanges = $this->approvedLeaves->rangesBetween(
+                (int) $locked->student_id,
+                $locked->from_date,
+                $locked->to_date,
+            );
+            $uncreditedDays = $this->approvedLeaves->uncreditedDays($locked, $approvedRanges);
+            $paise = $uncreditedDays * (int) config('mess.rebate_per_day_paise');
 
             $locked->update([
                 'status' => 'approved',
@@ -36,7 +44,11 @@ class RebateService
                     'student_id' => $locked->student_id,
                     'amount' => round($paise / 100, 2),
                     'amount_paise' => $paise,
-                    'reason' => sprintf('Leave rebate (%d day%s)', $days, $days === 1 ? '' : 's'),
+                    'reason' => sprintf(
+                        'Leave rebate (%d eligible day%s)',
+                        $uncreditedDays,
+                        $uncreditedDays === 1 ? '' : 's',
+                    ),
                     'created_at' => now(),
                 ],
             );

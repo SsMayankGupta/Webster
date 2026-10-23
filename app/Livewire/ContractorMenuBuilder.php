@@ -190,8 +190,8 @@ class ContractorMenuBuilder extends Component
 
         $startDate = Carbon::parse($this->pastWeeks[$this->selectedWeek]['date']);
         $menus = Menu::query()
-            ->whereDate('serve_at', '>=', $startDate)
-            ->whereDate('serve_at', '<=', $startDate->copy()->addDays(6))
+            ->whereDate('serve_at', '>=', $startDate->toDateString())
+            ->whereDate('serve_at', '<=', $startDate->copy()->addDays(6)->toDateString())
             ->get();
 
         $newStartDate = now()->startOfWeek()->addWeek();
@@ -209,7 +209,7 @@ class ContractorMenuBuilder extends Component
                 'recipe_text' => $menu->recipe_text,
                 'items' => $menu->items,
                 'is_locked' => false,
-                'status' => 'planned',
+                'status' => 'open',
                 'headcount_locked' => false,
             ]);
 

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Livewire\StudentPortal;
+use App\Models\LeaveRequest;
 use App\Models\MealBooking;
 use App\Models\MealConsumption;
 use App\Models\Menu;
@@ -106,6 +107,41 @@ class PortalMealTest extends TestCase
         $this->assertDatabaseHas('meal_bookings', [
             'id' => $booking->id,
             'status' => 'consumed',
+        ]);
+    }
+
+    public function test_approved_leave_disables_meal_controls_and_prevents_booking_changes(): void
+    {
+        $this->travelTo(now()->startOfDay()->addHours(8));
+
+        $student = $this->student();
+        $menu = $this->menu(now()->addHours(6));
+        LeaveRequest::query()->create([
+            'student_id' => $student->id,
+            'from_date' => today()->toDateString(),
+            'to_date' => today()->toDateString(),
+            'status' => 'approved',
+        ]);
+
+        $this->actingAs($student, 'student');
+
+        $component = Livewire::test(StudentPortal::class);
+
+        $meal = collect($component->get('state')['today']['meals'])->firstWhere('id', $menu->id);
+        $this->assertSame(true, $meal['is_on_approved_leave']);
+        $this->assertSame(false, $meal['can_manage']);
+
+        $component
+            ->assertSee('Approved leave')
+            ->assertDontSee('wire:click="confirmMeal('.$menu->id.', true)"', false)
+            ->call('confirmMeal', $menu->id, true)
+            ->assertHasErrors('meal-'.$menu->id)
+            ->call('cancelMeal', $menu->id)
+            ->assertHasErrors('meal-'.$menu->id);
+
+        $this->assertDatabaseMissing('meal_bookings', [
+            'student_id' => $student->id,
+            'menu_id' => $menu->id,
         ]);
     }
 

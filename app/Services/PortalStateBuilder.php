@@ -16,6 +16,7 @@ class PortalStateBuilder
         private readonly MealBookingService $bookings,
         private readonly BillingService $billing,
         private readonly QrTokenService $qr,
+        private readonly ApprovedLeaveService $approvedLeaves,
     ) {}
 
     /**
@@ -33,6 +34,12 @@ class PortalStateBuilder
             ->whereBetween('serve_at', [$start, $start->addDays(7)])
             ->orderBy('serve_at')
             ->get();
+
+        $approvedLeaves = $this->approvedLeaves->rangesBetween(
+            (int) $student->id,
+            $start,
+            $start->addDays(6)->endOfDay(),
+        );
 
         $bookings = MealBooking::query()
             ->where('student_id', $student->id)
@@ -53,9 +60,15 @@ class PortalStateBuilder
                 },
                 'full_label' => $date->format('D, d M'),
                 'is_today' => $offset === 0,
+                'is_on_approved_leave' => $this->approvedLeaves->containsDate($approvedLeaves, $date),
                 'meals' => $menus
                     ->filter(fn (Menu $menu): bool => $menu->serve_at->toDateString() === $date->toDateString())
-                    ->map(fn (Menu $menu): array => $this->meal($menu, $bookings->get($menu->id), $now))
+                    ->map(fn (Menu $menu): array => $this->meal(
+                        $menu,
+                        $bookings->get($menu->id),
+                        $now,
+                        $this->approvedLeaves->containsDate($approvedLeaves, $menu->serve_at),
+                    ))
                     ->values()
                     ->all(),
             ];
@@ -116,7 +129,7 @@ class PortalStateBuilder
     /**
      * @return array<string, mixed>
      */
-    private function meal(Menu $menu, ?MealBooking $booking, CarbonImmutable $now): array
+    private function meal(Menu $menu, ?MealBooking $booking, CarbonImmutable $now, bool $isOnApprovedLeave): array
     {
         $status = $this->lifecycle->stateFor($menu, $now);
         $cutoff = $menu->cutoffAt();
@@ -146,10 +159,11 @@ class PortalStateBuilder
                 'status' => $booking->status,
             ],
             'is_consumed' => $isConsumed,
+            'is_on_approved_leave' => $isOnApprovedLeave,
             'opted_in' => $optedIn,
             'lane' => $booking?->assigned_lane,
-            'can_manage' => ! $isConsumed && $open && $status !== 'closed',
-            'can_cancel' => ! $isConsumed && $open && $status !== 'closed' && $optedIn,
+            'can_manage' => ! $isConsumed && ! $isOnApprovedLeave && $open && $status !== 'closed',
+            'can_cancel' => ! $isConsumed && ! $isOnApprovedLeave && $open && $status !== 'closed' && $optedIn,
         ];
     }
 
@@ -165,18 +179,28 @@ class PortalStateBuilder
      */
     private function leaveSummary(User $student): array
     {
-        return LeaveRequest::query()
+        $leaves = LeaveRequest::query()
             ->where('student_id', $student->id)
             ->with(['rebates' => fn ($query) => $query->orderBy('created_at')])
             ->latest()
             ->limit(12)
-            ->get()
-            ->map(function (LeaveRequest $leave): array {
+            ->get();
+        $approvedRanges = LeaveRequest::query()
+            ->where('student_id', $student->id)
+            ->where('status', 'approved')
+            ->get(['from_date', 'to_date']);
+
+        return $leaves
+            ->map(function (LeaveRequest $leave) use ($approvedRanges): array {
                 $days = (int) $leave->from_date->diffInDays($leave->to_date) + 1;
                 $rebatePaise = $leave->rebates->sum(
                     fn (RebateLedger $rebate): int => (int) ($rebate->amount_paise
                         ?? round(((float) $rebate->amount) * 100))
                 );
+                $estimatedRebatePaise = $leave->status === 'pending'
+                    ? $this->approvedLeaves->uncreditedDays($leave, $approvedRanges)
+                        * (int) config('mess.rebate_per_day_paise')
+                    : 0;
 
                 return [
                     'id' => $leave->id,
@@ -188,6 +212,7 @@ class PortalStateBuilder
                     'reason' => $leave->reason,
                     'status' => $leave->status,
                     'rebate_paise' => $rebatePaise,
+                    'estimated_rebate_paise' => $estimatedRebatePaise,
                     'created_at' => $leave->created_at->toDateString(),
                 ];
             })

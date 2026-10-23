@@ -7,6 +7,7 @@ use App\Exceptions\RedemptionRejectedException;
 use App\Models\LeaveRequest;
 use App\Models\Menu;
 use App\Models\User;
+use App\Services\ApprovedLeaveService;
 use App\Services\MealBookingService;
 use App\Services\PortalStateBuilder;
 use App\Services\QrTokenService;
@@ -413,7 +414,14 @@ class StudentPortal extends Component
         $booking = app(MealBookingService::class)->activeBooking($student);
 
         if ($booking === null) {
-            $this->qrError = 'No active meal booking. Confirm your next meal to unlock check-in.';
+            $approvedLeaves = app(ApprovedLeaveService::class)->rangesBetween(
+                (int) $student->id,
+                now()->subHours(2),
+                now()->addDays(7),
+            );
+            $this->qrError = $approvedLeaves->isNotEmpty()
+                ? 'QR check-in is disabled for approved leave dates; no other active meal booking is available.'
+                : 'No active meal booking. Confirm your next meal to unlock check-in.';
             $this->qrSvg = null;
             $this->qrToken = null;
             $this->qrExpiresAt = null;

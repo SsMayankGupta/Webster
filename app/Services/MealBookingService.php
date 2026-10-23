@@ -10,7 +10,10 @@ use Illuminate\Support\Facades\DB;
 
 class MealBookingService
 {
-    public function __construct(private readonly MealLifecycleService $lifecycle) {}
+    public function __construct(
+        private readonly MealLifecycleService $lifecycle,
+        private readonly ApprovedLeaveService $approvedLeaves,
+    ) {}
 
     /**
      * Opt in or out of a meal. The menu row is locked so concurrent requests
@@ -19,7 +22,12 @@ class MealBookingService
     public function confirm(User $student, Menu $menu, bool $optIn, ?string $dietaryPreference = null): MealBooking
     {
         return DB::transaction(function () use ($student, $menu, $optIn, $dietaryPreference): MealBooking {
+            User::query()->whereKey($student->id)->lockForUpdate()->firstOrFail();
             $lockedMenu = Menu::query()->whereKey($menu->id)->lockForUpdate()->firstOrFail();
+
+            if ($this->approvedLeaves->coversDate((int) $student->id, $lockedMenu->serve_at)) {
+                throw new MealCutoffReachedException('Meal opt-in and opt-out are disabled during approved leave.');
+            }
 
             if (! $lockedMenu->isOpenAt()) {
                 throw new MealCutoffReachedException;
@@ -62,7 +70,7 @@ class MealBookingService
      */
     public function activeBooking(User $student): ?MealBooking
     {
-        return MealBooking::query()
+        $bookings = MealBooking::query()
             ->select('meal_bookings.*')
             ->with('menu')
             ->join('menus', 'menus.id', '=', 'meal_bookings.menu_id')
@@ -72,6 +80,23 @@ class MealBookingService
             ->where('menus.serve_at', '>=', now()->subHours(2))
             ->where('menus.serve_at', '<=', now()->addDays(7))
             ->orderBy('menus.serve_at')
-            ->first();
+            ->get();
+
+        if ($bookings->isEmpty()) {
+            return null;
+        }
+
+        $approvedLeaves = $this->approvedLeaves->rangesBetween(
+            (int) $student->id,
+            now()->subHours(2),
+            now()->addDays(7),
+        );
+
+        return $bookings->first(
+            fn (MealBooking $booking): bool => ! $this->approvedLeaves->containsDate(
+                $approvedLeaves,
+                $booking->menu->serve_at,
+            ),
+        );
     }
 }

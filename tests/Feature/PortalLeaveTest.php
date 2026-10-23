@@ -102,6 +102,34 @@ class PortalLeaveTest extends TestCase
         $this->assertCount(1, $statement['entries']);
     }
 
+    public function test_each_approved_calendar_day_is_rebated_once_across_multiple_leave_requests(): void
+    {
+        $this->travelTo(now()->startOfDay());
+
+        $student = $this->student();
+        $contractor = $this->contractor();
+        $firstLeave = $this->leave($student, today()->addDays(2), today()->addDays(3));
+        $overlappingLeave = $this->leave($student, today()->addDays(3), today()->addDays(4));
+        $rebates = app(RebateService::class);
+
+        $rebates->approve($firstLeave, $contractor);
+        $rebates->approve($overlappingLeave, $contractor);
+
+        $this->assertDatabaseHas('rebate_ledgers', [
+            'leave_request_id' => $firstLeave->id,
+            'amount_paise' => 10000,
+        ]);
+        $this->assertDatabaseHas('rebate_ledgers', [
+            'leave_request_id' => $overlappingLeave->id,
+            'amount_paise' => 5000,
+        ]);
+
+        $statement = app(BillingService::class)->statement($student);
+        $this->assertSame(15000, $statement['rebate_paise']);
+        $this->assertSame(285000, $statement['net_paise']);
+        $this->assertCount(2, $statement['entries']);
+    }
+
     public function test_portal_state_exposes_the_latest_statement(): void
     {
         $student = $this->student();
@@ -118,6 +146,9 @@ class PortalLeaveTest extends TestCase
         $this->assertSame(10000, $state['billing']['rebate_paise']);
         $this->assertSame('approved', $state['leaves'][0]['status']);
         $this->assertSame(10000, $state['leaves'][0]['rebate_paise']);
+
+        $component->call('setTab', 'leave')
+            ->assertSee('₹100.00 rebate credited');
     }
 
     private function student(): User
