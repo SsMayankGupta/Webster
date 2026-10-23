@@ -16,6 +16,7 @@ class DashboardController extends Controller
         $todayMenus = Menu::whereDate('serve_at', today())->get();
         $headcount = MealBooking::whereIn('menu_id', $todayMenus->pluck('id'))->where('status', 'booked')->count();
         $waste = WasteTransaction::where('contractor_id', $contractor->id)->latest()->limit(5)->get();
+
         return view('contractor.dashboard', compact('contractor', 'todayMenus', 'headcount', 'waste'));
     }
 }

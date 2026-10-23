@@ -13,6 +13,7 @@ class WasteController extends Controller
     {
         $contractor = Auth::guard('contractor')->user();
         $transactions = WasteTransaction::where('contractor_id', $contractor->id)->latest()->get();
+
         return view('contractor.waste.index', compact('transactions'));
     }
 
@@ -31,6 +32,7 @@ class WasteController extends Controller
             'earnings' => $data['earnings'] ?? 0,
             'logged_at' => now(),
         ]);
+
         return redirect()->route('contractor.waste.index')->with('status', 'Waste logged.');
     }
 }

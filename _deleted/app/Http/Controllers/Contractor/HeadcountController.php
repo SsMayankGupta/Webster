@@ -23,6 +23,7 @@ class HeadcountController extends Controller
                 $menu->refresh();
             }
         }
+
         return view('contractor.headcount', compact('menus'));
     }
 }

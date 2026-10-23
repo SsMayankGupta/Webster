@@ -5,8 +5,10 @@ namespace App\Livewire;
 use App\Events\MenuUpdated;
 use App\Models\MealTimeSlot;
 use App\Models\Menu;
+use App\Services\NutritionApiService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\On;
 use Livewire\Component;
 
 class ContractorMenuBuilder extends Component
@@ -30,11 +32,18 @@ class ContractorMenuBuilder extends Component
 
     public array $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-    public array $mealTypes = ['BREAKFAST', 'LUNCH', 'SNACKS', 'DINNER'];
+    public array $mealTypes = ['breakfast', 'lunch', 'snacks', 'dinner'];
 
     public array $cuisineTypes = ['mixed', 'indian', 'continental', 'chinese', 'south-indian', 'north-indian'];
 
     public function mount(): void
+    {
+        $this->loadPastWeeks();
+        $this->initializeSchedule();
+    }
+
+    #[On('contractor-logged-in')]
+    public function onContractorLoggedIn(): void
     {
         $this->loadPastWeeks();
         $this->initializeSchedule();
@@ -93,33 +102,34 @@ class ContractorMenuBuilder extends Component
         $dailyFat = ($dailyCalories * $this->aiPreferences['fat_ratio'] / 100) / 9;
 
         $mealRatios = [
-            'BREAKFAST' => 0.25,
-            'LUNCH' => 0.35,
-            'SNACKS' => 0.1,
-            'DINNER' => 0.3,
+            'breakfast' => 0.25,
+            'lunch' => 0.35,
+            'snacks' => 0.1,
+            'dinner' => 0.3,
         ];
 
         $cuisineItems = $this->getCuisineItems($this->aiPreferences['cuisine_type'], $this->aiPreferences['vegetarian']);
+        $nutritionService = app(NutritionApiService::class);
 
         foreach ($this->days as $day) {
             foreach ($this->mealTypes as $mealType) {
                 $ratio = $mealRatios[$mealType];
                 $mealCalories = $dailyCalories * $ratio;
-                $mealProtein = round($dailyProtein * $ratio);
-                $mealCarbs = round($dailyCarbs * $ratio);
 
                 $items = $this->generateMealItems($mealType, $cuisineItems, $this->aiPreferences['vegetarian']);
 
+                $nutritionData = $nutritionService->getNutritionForIngredients($items);
+
                 $this->schedule[$day][$mealType] = [
                     'items' => implode(', ', $items),
-                    'protein' => $mealProtein,
-                    'carbs' => $mealCarbs,
-                    'calories' => round($mealCalories),
+                    'protein' => round($nutritionData['protein'], 1),
+                    'carbs' => round($nutritionData['carbs'], 1),
+                    'calories' => round($nutritionData['calories'], 1),
                 ];
             }
         }
 
-        $this->dispatch('portal-toast', message: 'AI menu generated successfully!', type: 'success');
+        $this->dispatch('portal-toast', message: 'AI menu generated with nutrition data!', type: 'success');
     }
 
     private function getCuisineItems(string $cuisine, bool $vegetarian): array
@@ -153,10 +163,10 @@ class ContractorMenuBuilder extends Component
     private function generateMealItems(string $mealType, array $cuisineItems, bool $vegetarian): array
     {
         $items = match ($mealType) {
-            'BREAKFAST' => array_slice($cuisineItems, 0, 3),
-            'LUNCH' => array_slice($cuisineItems, 2, 4),
-            'SNACKS' => array_slice($cuisineItems, 4, 2),
-            'DINNER' => array_slice($cuisineItems, 3, 4),
+            'breakfast' => array_slice($cuisineItems, 0, 3),
+            'lunch' => array_slice($cuisineItems, 2, 4),
+            'snacks' => array_slice($cuisineItems, 4, 2),
+            'dinner' => array_slice($cuisineItems, 3, 4),
         };
 
         return array_values(array_filter($items));
@@ -221,6 +231,7 @@ class ContractorMenuBuilder extends Component
 
         $timeSlots = MealTimeSlot::all()->keyBy('meal_type');
         $startDate = now()->startOfWeek()->addWeek();
+        $nutritionService = app(NutritionApiService::class);
 
         foreach ($this->days as $dayIndex => $day) {
             foreach ($this->mealTypes as $mealType) {
@@ -237,16 +248,19 @@ class ContractorMenuBuilder extends Component
                     $serveAt->setTimeFromTimeString($timeSlot->start_time);
                 }
 
+                $items = array_map('trim', explode(',', $entry['items']));
+                $nutritionData = $nutritionService->getNutritionForIngredients($items);
+
                 $menu = Menu::query()->create([
                     'meal_type' => $mealType,
                     'serve_at' => $serveAt,
-                    'protein' => $entry['protein'],
-                    'carbs' => $entry['carbs'],
-                    'calories' => $entry['calories'],
+                    'protein' => $nutritionData['protein'],
+                    'carbs' => $nutritionData['carbs'],
+                    'calories' => $nutritionData['calories'],
                     'recipe_text' => $entry['items'],
-                    'items' => explode(',', $entry['items']),
+                    'items' => $items,
                     'is_locked' => false,
-                    'status' => 'planned',
+                    'status' => 'open',
                     'headcount_locked' => false,
                     'meal_time_slot_id' => $timeSlot?->id,
                 ]);

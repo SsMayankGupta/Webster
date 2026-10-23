@@ -467,6 +467,17 @@ class StudentPortal extends Component
         $this->dispatch('portal-toast', message: 'Check-in confirmed at the counter.', type: 'success');
     }
 
+    #[On('echo:meals,MenuUpdated')]
+    public function onMenuUpdated(): void
+    {
+        $student = $this->currentStudent();
+
+        if ($student !== null) {
+            $this->loadPortalState($student);
+            $this->dispatch('portal-toast', message: 'Menu updated by contractor.', type: 'info');
+        }
+    }
+
     private function loadPortalState(User $student): void
     {
         $this->state = app(PortalStateBuilder::class)->build($student, $this->billingMonth ?: null);

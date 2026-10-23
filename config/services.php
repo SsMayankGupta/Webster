@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'edamam' => [
+        'app_id' => env('EDAMAM_APP_ID'),
+        'app_key' => env('EDAMAM_APP_KEY'),
+    ],
+
 ];

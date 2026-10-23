@@ -45,6 +45,21 @@
                         <span x-show="sidebar" class="truncate">{{ $label }}</span>
                     </a>
                 @endforeach
+
+                <div class="my-3 border-t border-slate-200 dark:border-slate-700"></div>
+
+                @php
+                    $newItems = [
+                        ['contractor.menu-update','Menu Update','M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15'],
+                        ['contractor.meal-timing','Meal Timing','M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'],
+                    ];
+                @endphp
+                @foreach ($newItems as [$route,$label,$icon])
+                    <a href="{{ route($route) }}" class="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition {{ request()->routeIs($route.'*') ? 'bg-indigo-600 text-white shadow-glow' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800' }}">
+                        <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $icon }}"/></svg>
+                        <span x-show="sidebar" class="truncate">{{ $label }}</span>
+                    </a>
+                @endforeach
             </nav>
             <div class="absolute bottom-4 left-0 right-0 px-3">
                 <form method="POST" action="{{ route('contractor.logout') }}">

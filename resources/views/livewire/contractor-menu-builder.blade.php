@@ -215,7 +215,7 @@
                             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                                 @foreach($mealTypes as $mealType)
                                     <div class="rounded-lg bg-slate-50 p-3 dark:bg-slate-900/50">
-                                        <div class="mb-1 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">{{ $mealType }}</div>
+                                        <div class="mb-1 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">{{ ucfirst($mealType) }}</div>
                                         @if(!empty($schedule[$day][$mealType]['items']))
                                             <div class="mb-2 text-sm text-slate-700 dark:text-slate-300">{{ $schedule[$day][$mealType]['items'] }}</div>
                                         @else

@@ -12,6 +12,7 @@ class MenuBuilderController extends Controller
     public function index()
     {
         $menus = Menu::latest()->limit(20)->get();
+
         return view('contractor.menu-builder', compact('menus'));
     }
 
@@ -29,6 +30,7 @@ class MenuBuilderController extends Controller
             'status' => 'open',
         ]);
         CalculateMenuMacros::dispatch($menu->id);
+
         return redirect()->route('contractor.menu-builder')->with('status', 'Menu created; macros queued.');
     }
 }
