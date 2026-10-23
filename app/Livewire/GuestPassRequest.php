@@ -87,7 +87,7 @@ class GuestPassRequest extends Component
                 $booking = MealBooking::query()->create([
                     'student_id' => $student->id,
                     'menu_id' => $menu->id,
-                    'status' => 'PENDING_APPROVAL',
+                    'status' => 'pending_approval',
                     'is_guest_pass' => true,
                     'primary_student_id' => $student->id,
                     'guest_count' => $this->guestCount,

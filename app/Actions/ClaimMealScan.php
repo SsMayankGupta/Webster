@@ -22,7 +22,7 @@ class ClaimMealScan
         return DB::transaction(function () use ($payload) {
             $booking = MealBooking::query()
                 ->where('id', $payload['booking_id'])
-                ->where('status', 'OPTED_IN')
+                ->where('status', 'booked')
                 ->lockForUpdate()
                 ->first();
 
@@ -40,7 +40,7 @@ class ClaimMealScan
                     'consumed_at' => now(),
                 ]);
 
-                $booking->update(['status' => 'CONSUMED']);
+                $booking->update(['status' => 'consumed']);
 
                 return $consumption;
             } catch (UniqueConstraintViolationException $e) {

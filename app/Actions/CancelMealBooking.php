@@ -32,7 +32,7 @@ class CancelMealBooking
                 throw new ConflictHttpException('Meal cutoff has been reached. Cancellation is no longer allowed.');
             }
 
-            $booking->update(['status' => 'CANCELLED']);
+            $booking->update(['status' => 'cancelled']);
 
             return $booking->fresh();
         });

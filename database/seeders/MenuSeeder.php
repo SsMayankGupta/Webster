@@ -26,78 +26,69 @@ class MenuSeeder extends Seeder
 
     private function seedMealTimeSlots(): void
     {
-        MealTimeSlot::query()->delete();
+        $mealTimeSlots = [
+            'BREAKFAST' => ['07:00:00', '09:00:00'],
+            'LUNCH' => ['12:00:00', '14:00:00'],
+            'SNACKS' => ['16:00:00', '17:00:00'],
+            'DINNER' => ['19:00:00', '21:00:00'],
+        ];
 
-        MealTimeSlot::query()->create([
-            'meal_type' => 'breakfast',
-            'start_time' => '07:00:00',
-            'end_time' => '09:00:00',
-            'cutoff_hours_before' => 4,
-        ]);
-
-        MealTimeSlot::query()->create([
-            'meal_type' => 'lunch',
-            'start_time' => '12:00:00',
-            'end_time' => '14:00:00',
-            'cutoff_hours_before' => 4,
-        ]);
-
-        MealTimeSlot::query()->create([
-            'meal_type' => 'snacks',
-            'start_time' => '16:00:00',
-            'end_time' => '17:00:00',
-            'cutoff_hours_before' => 4,
-        ]);
-
-        MealTimeSlot::query()->create([
-            'meal_type' => 'dinner',
-            'start_time' => '19:00:00',
-            'end_time' => '21:00:00',
-            'cutoff_hours_before' => 4,
-        ]);
+        foreach ($mealTimeSlots as $mealType => [$startTime, $endTime]) {
+            MealTimeSlot::query()->updateOrCreate(
+                ['meal_type' => $mealType],
+                [
+                    'start_time' => $startTime,
+                    'end_time' => $endTime,
+                    'cutoff_hours_before' => 4,
+                ],
+            );
+        }
     }
 
     private function seedUsers(): void
     {
-        User::query()->where('role', 'student')->get()->each->delete();
-        User::query()->where('role', 'contractor')->get()->each->delete();
+        User::query()->updateOrCreate(
+            ['college_id' => 'CONTRACTOR001'],
+            [
+                'name' => 'Contractor Admin',
+                'email' => 'contractor@zerowastemess.io',
+                'password' => Hash::make('password'),
+                'role' => 'contractor',
+                'hostel' => 'Main Block',
+                'dietary_pref' => 'veg',
+                'dietary_tags' => ['veg'],
+            ],
+        );
 
-        $contractor = User::query()->create([
-            'name' => 'Contractor Admin',
-            'college_id' => 'CONTRACTOR001',
-            'email' => 'contractor@zerowastemess.io',
-            'password' => Hash::make('password'),
-            'role' => 'contractor',
-            'hostel' => 'Main Block',
-            'dietary_pref' => 'veg',
-            'dietary_tags' => ['veg'],
-        ]);
+        $hostels = ['Block A', 'Block B', 'Block C'];
+        $dietaryPreferences = ['veg', 'non-veg'];
+        $dietaryTags = [['veg'], ['non-veg'], ['jain']];
 
         for ($i = 1; $i <= 10; $i++) {
-            User::query()->create([
-                'name' => "Student {$i}",
-                'college_id' => 'STU'.str_pad($i, 4, '0', STR_PAD_LEFT),
-                'email' => "student{$i}@college.edu",
-                'password' => Hash::make('password'),
-                'role' => 'student',
-                'hostel' => ['Block A', 'Block B', 'Block C'][array_rand(['Block A', 'Block B', 'Block C'])],
-                'dietary_pref' => ['veg', 'non-veg'][array_rand(['veg', 'non-veg'])],
-                'dietary_tags' => [['veg'], ['non-veg'], ['jain']][array_rand([['veg'], ['non-veg'], ['jain']])],
-            ]);
+            User::query()->updateOrCreate(
+                ['college_id' => 'STU'.str_pad((string) $i, 4, '0', STR_PAD_LEFT)],
+                [
+                    'name' => "Student {$i}",
+                    'email' => "student{$i}@college.edu",
+                    'password' => Hash::make('password'),
+                    'role' => 'student',
+                    'hostel' => $hostels[($i - 1) % count($hostels)],
+                    'dietary_pref' => $dietaryPreferences[($i - 1) % count($dietaryPreferences)],
+                    'dietary_tags' => $dietaryTags[($i - 1) % count($dietaryTags)],
+                ],
+            );
         }
     }
 
     private function seedMenus(): void
     {
-        Menu::query()->delete();
-
         $breakfastItems = ['Idli Sambar', 'Dosa', 'Upma', 'Poha', 'Paratha', 'Egg Curry', 'Cornflakes', 'Oats'];
         $lunchItems = ['Rice', 'Dal', 'Roti', 'Vegetable Curry', 'Chicken Curry', 'Fish Fry', 'Salad', 'Curd'];
         $snacksItems = ['Samosa', 'Pakora', 'Tea/Coffee', 'Sandwich', 'Biscuits', 'Fruits'];
         $dinnerItems = ['Roti', 'Paneer Butter Masala', 'Chicken Biryani', 'Dal Makhani', 'Vegetable Pulao', 'Mixed Veg'];
 
         $today = Carbon::now()->startOfWeek();
-        $mealTimeSlots = MealTimeSlot::all();
+        $mealTimeSlots = MealTimeSlot::query()->get()->keyBy('meal_type');
 
         for ($weekOffset = 0; $weekOffset < 2; $weekOffset++) {
             for ($dayOffset = 0; $dayOffset < 7; $dayOffset++) {
@@ -123,7 +114,7 @@ class MenuSeeder extends Seeder
                         $items[] = $itemArray[$key];
                     }
 
-                    $timeSlot = $mealTimeSlots->firstWhere('meal_type', $mealType);
+                    $timeSlot = $mealTimeSlots->get(strtoupper($mealType));
 
                     if ($timeSlot === null) {
                         continue;
@@ -131,19 +122,23 @@ class MenuSeeder extends Seeder
 
                     $serveAt = $currentDate->copy()->setTimeFromTimeString($timeSlot->start_time);
 
-                    Menu::query()->create([
-                        'meal_type' => $mealType,
-                        'serve_at' => $serveAt,
-                        'protein' => rand(15, 35),
-                        'carbs' => rand(40, 80),
-                        'calories' => rand(250, 600),
-                        'recipe_text' => implode(', ', $items),
-                        'items' => $items,
-                        'is_locked' => $weekOffset === 0,
-                        'status' => $weekOffset === 0 ? 'locked' : 'open',
-                        'headcount_locked' => $weekOffset === 0,
-                        'meal_time_slot_id' => $timeSlot->id,
-                    ]);
+                    Menu::query()->updateOrCreate(
+                        [
+                            'meal_type' => $mealType,
+                            'serve_at' => $serveAt,
+                        ],
+                        [
+                            'protein' => rand(15, 35),
+                            'carbs' => rand(40, 80),
+                            'calories' => rand(250, 600),
+                            'recipe_text' => implode(', ', $items),
+                            'items' => $items,
+                            'is_locked' => $weekOffset === 0,
+                            'status' => $weekOffset === 0 ? 'locked' : 'open',
+                            'headcount_locked' => $weekOffset === 0,
+                            'meal_time_slot_id' => $timeSlot->id,
+                        ],
+                    );
                 }
             }
         }

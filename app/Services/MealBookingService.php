@@ -3,72 +3,14 @@
 namespace App\Services;
 
 use App\Exceptions\MealCutoffReachedException;
-use App\Models\LeaveRequest;
 use App\Models\MealBooking;
 use App\Models\Menu;
 use App\Models\User;
-use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
 class MealBookingService
 {
     public function __construct(private readonly MealLifecycleService $lifecycle) {}
-
-    /**
-     * Enrol a student in every scheduled meal unless they opted out or are on leave.
-     */
-    public function ensureDefaultBookings(User $student): void
-    {
-        $start = CarbonImmutable::now();
-        $end = $start->addDays(7);
-
-        $leaveDates = LeaveRequest::query()
-            ->where('student_id', $student->id)
-            ->where('status', 'approved')
-            ->where('to_date', '>=', $start->toDateString())
-            ->where('from_date', '<=', $end->toDateString())
-            ->get()
-            ->flatMap(function (LeaveRequest $leave): array {
-                $dates = [];
-                $cursor = $leave->from_date->copy();
-
-                while ($cursor->lte($leave->to_date)) {
-                    $dates[] = $cursor->toDateString();
-                    $cursor = $cursor->addDay();
-                }
-
-                return $dates;
-            });
-
-        $menus = Menu::query()
-            ->whereBetween('serve_at', [$start, $end])
-            ->whereIn('status', ['open', 'locked', 'serving'])
-            ->get();
-
-        $rows = [];
-
-        foreach ($menus as $menu) {
-            if ($leaveDates->contains($menu->serve_at->toDateString())) {
-                continue;
-            }
-
-            if (! $menu->isOpenAt()) {
-                continue;
-            }
-
-            $rows[] = [
-                'student_id' => $student->id,
-                'menu_id' => $menu->id,
-                'status' => 'booked',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ];
-        }
-
-        if ($rows !== []) {
-            MealBooking::query()->insertOrIgnore($rows);
-        }
-    }
 
     /**
      * Opt in or out of a meal. The menu row is locked so concurrent requests

@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -11,6 +10,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
         DB::unprepared('
             CREATE TRIGGER prevent_consumption_ledger_update
             BEFORE UPDATE ON meal_consumptions
@@ -71,6 +74,10 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
         DB::unprepared('DROP TRIGGER IF EXISTS prevent_consumption_ledger_update');
         DB::unprepared('DROP TRIGGER IF EXISTS prevent_consumption_ledger_delete');
         DB::unprepared('DROP TRIGGER IF EXISTS prevent_rebate_ledger_update');

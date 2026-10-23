@@ -7,6 +7,7 @@ use App\Livewire\ContractorHeadcount;
 use App\Livewire\ContractorLeave;
 use App\Livewire\ContractorLogin;
 use App\Livewire\ContractorMenuBuilder;
+use App\Livewire\ContractorRegisterStudent;
 use App\Livewire\ContractorStaff;
 use App\Livewire\ContractorTicket;
 use App\Livewire\ContractorWaste;
@@ -31,6 +32,7 @@ Route::prefix('contractor')->name('contractor.')->group(function () {
         Route::get('/waste', ContractorWaste::class)->name('waste.index');
         Route::get('/leaves', ContractorLeave::class)->name('leaves.index');
         Route::get('/staff', ContractorStaff::class)->name('staff');
+        Route::get('/students/create', ContractorRegisterStudent::class)->name('students.create');
         Route::get('/tickets', ContractorTicket::class)->name('tickets.index');
         Route::get('/scanner', [ScanController::class, 'index'])->name('scanner');
     });

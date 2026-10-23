@@ -18,11 +18,15 @@ return new class extends Migration
             $table->unsignedInteger('guest_count')->default(1)->after('primary_student_id');
         });
 
-        DB::statement("ALTER TABLE meal_bookings MODIFY COLUMN status ENUM('OPTED_IN', 'CANCELLED', 'CONSUMED', 'PENDING_APPROVAL') NOT NULL DEFAULT 'OPTED_IN'");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE meal_bookings MODIFY COLUMN status ENUM('OPTED_IN', 'CANCELLED', 'CONSUMED', 'PENDING_APPROVAL') NOT NULL DEFAULT 'OPTED_IN'");
+        }
 
-        Schema::table('meal_bookings', function (Blueprint $table) {
-            $table->index('id');
-        });
+        if (DB::getDriverName() !== 'sqlite') {
+            Schema::table('meal_bookings', function (Blueprint $table) {
+                $table->index('id');
+            });
+        }
     }
 
     /**
@@ -35,6 +39,8 @@ return new class extends Migration
             $table->dropColumn(['is_guest_pass', 'primary_student_id', 'guest_count']);
         });
 
-        DB::statement("ALTER TABLE meal_bookings MODIFY COLUMN status ENUM('booked', 'cancelled', 'consumed') NOT NULL DEFAULT 'booked'");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE meal_bookings MODIFY COLUMN status ENUM('booked', 'cancelled', 'consumed') NOT NULL DEFAULT 'booked'");
+        }
     }
 };

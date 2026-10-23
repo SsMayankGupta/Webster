@@ -32,7 +32,7 @@ class ContractorGuestQueue extends Component
         $this->pendingRequests = MealBooking::query()
             ->with(['student', 'menu'])
             ->where('is_guest_pass', true)
-            ->where('status', 'PENDING_APPROVAL')
+            ->where('status', 'pending_approval')
             ->orderBy('created_at')
             ->get()
             ->map(function ($booking) {
@@ -64,7 +64,7 @@ class ContractorGuestQueue extends Component
                 $booking = MealBooking::query()
                     ->with(['menu', 'student'])
                     ->where('id', $bookingId)
-                    ->where('status', 'PENDING_APPROVAL')
+                    ->where('status', 'pending_approval')
                     ->lockForUpdate()
                     ->first();
 
@@ -72,7 +72,7 @@ class ContractorGuestQueue extends Component
                     throw new \RuntimeException('Booking not found or already processed.');
                 }
 
-                $booking->update(['status' => 'OPTED_IN']);
+                $booking->update(['status' => 'booked']);
 
                 $headcountLedger = HeadcountLedger::query()
                     ->where('menu_id', $booking->menu_id)
@@ -118,8 +118,8 @@ class ContractorGuestQueue extends Component
 
         MealBooking::query()
             ->where('id', $bookingId)
-            ->where('status', 'PENDING_APPROVAL')
-            ->update(['status' => 'CANCELLED']);
+            ->where('status', 'pending_approval')
+            ->update(['status' => 'cancelled']);
 
         $this->loadPendingRequests();
         $this->dispatch('portal-toast', message: 'Guest pass rejected.', type: 'warning');

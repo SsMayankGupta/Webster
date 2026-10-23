@@ -4,8 +4,10 @@ namespace Tests\Feature;
 
 use App\Livewire\StudentPortal;
 use App\Models\MealBooking;
+use App\Models\MealConsumption;
 use App\Models\Menu;
 use App\Models\User;
+use App\Services\MealBookingService;
 use App\Services\MealLifecycleService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -16,38 +18,116 @@ class PortalMealTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_students_are_opted_in_by_default_for_open_meals(): void
+    public function test_students_are_opted_out_until_they_opt_in(): void
     {
+        $this->travelTo(now()->startOfDay()->addHours(8));
+
         $student = $this->student();
-        $menu = $this->menu(now()->addDay());
+        $menu = $this->menu(now()->addHours(6));
 
         $this->actingAs($student, 'student');
 
-        Livewire::test(StudentPortal::class);
+        $component = Livewire::test(StudentPortal::class);
+        $meal = collect($component->get('state')['days'])
+            ->flatMap(fn (array $day): array => $day['meals'])
+            ->firstWhere('id', $menu->id);
 
-        $this->assertDatabaseHas('meal_bookings', [
+        $this->assertSame(false, $meal['opted_in']);
+        $component
+            ->assertSee('Opted out')
+            ->assertSee('Opt in')
+            ->assertDontSee('Dietary preference for this meal');
+
+        $this->assertDatabaseMissing('meal_bookings', [
             'student_id' => $student->id,
             'menu_id' => $menu->id,
             'status' => 'booked',
         ]);
     }
 
-    public function test_student_can_confirm_a_meal_with_a_dietary_preference(): void
+    public function test_opt_in_and_out_controls_are_only_shown_for_today(): void
     {
+        $this->travelTo(now()->startOfDay()->addHours(8));
+
         $student = $this->student();
-        $menu = $this->menu(now()->addDays(2));
+        $todayMenu = $this->menu(now()->addHours(6));
+        $tomorrowMenu = $this->menu(now()->addDay()->addHours(6));
+
+        $this->actingAs($student, 'student');
+
+        $component = Livewire::test(StudentPortal::class);
+
+        $component
+            ->assertSee('wire:click="confirmMeal('.$todayMenu->id.', true)"', false)
+            ->assertDontSee('wire:click="confirmMeal('.$tomorrowMenu->id.', true)"', false);
+    }
+
+    public function test_redeemed_meal_refresh_shows_consumed_status_without_change_controls(): void
+    {
+        $this->travelTo(now()->startOfDay()->addHours(8));
+
+        $student = $this->student();
+        $menu = $this->menu(now()->addHours(6));
+        $booking = MealBooking::create([
+            'student_id' => $student->id,
+            'menu_id' => $menu->id,
+            'status' => 'booked',
+        ]);
+
+        $this->actingAs($student, 'student');
+
+        $component = Livewire::test(StudentPortal::class);
+
+        $booking->update(['status' => 'consumed']);
+        MealConsumption::query()->create([
+            'booking_id' => $booking->id,
+            'mode' => 'online',
+            'consumed_at' => now(),
+        ]);
+
+        $component
+            ->call('refreshMealState')
+            ->assertSee('Food consumed')
+            ->assertSee('Done')
+            ->assertDontSee('wire:click="cancelMeal('.$menu->id.')"', false)
+            ->assertDontSee('wire:click="confirmMeal('.$menu->id.', true)"', false);
+
+        $component
+            ->call('confirmMeal', $menu->id, false)
+            ->assertHasErrors('meal-'.$menu->id);
+
+        $meal = collect($component->get('state')['days'])
+            ->flatMap(fn (array $day): array => $day['meals'])
+            ->firstWhere('id', $menu->id);
+
+        $this->assertSame(true, $meal['is_consumed']);
+        $this->assertSame(false, $meal['can_manage']);
+        $this->assertSame(false, $meal['can_cancel']);
+        $this->assertDatabaseHas('meal_bookings', [
+            'id' => $booking->id,
+            'status' => 'consumed',
+        ]);
+    }
+
+    public function test_student_can_opt_in_to_a_meal_before_the_cutoff(): void
+    {
+        $this->travelTo(now()->startOfDay()->addHours(8));
+
+        $student = $this->student();
+        $menu = $this->menu(now()->addHours(6));
 
         $this->actingAs($student, 'student');
 
         Livewire::test(StudentPortal::class)
-            ->call('confirmMeal', $menu->id, true, 'jain')
-            ->assertHasNoErrors();
+            ->call('confirmMeal', $menu->id, true)
+            ->assertHasNoErrors()
+            ->assertSee('Opted in');
 
         $this->assertDatabaseHas('meal_bookings', [
             'student_id' => $student->id,
             'menu_id' => $menu->id,
             'status' => 'booked',
-            'dietary_pref' => 'jain',
+            'dietary_pref' => null,
         ]);
     }
 
@@ -59,6 +139,7 @@ class PortalMealTest extends TestCase
         $this->actingAs($student, 'student');
 
         Livewire::test(StudentPortal::class)
+            ->call('confirmMeal', $menu->id, true)
             ->call('cancelMeal', $menu->id)
             ->assertHasNoErrors();
 
@@ -67,6 +148,8 @@ class PortalMealTest extends TestCase
             'menu_id' => $menu->id,
             'status' => 'cancelled',
         ]);
+
+        $this->assertNull(app(MealBookingService::class)->activeBooking($student));
     }
 
     public function test_late_confirmation_is_rejected_and_not_persisted(): void
@@ -76,7 +159,13 @@ class PortalMealTest extends TestCase
 
         $this->actingAs($student, 'student');
 
-        Livewire::test(StudentPortal::class)
+        $component = Livewire::test(StudentPortal::class);
+        $meal = collect($component->get('state')['days'])
+            ->flatMap(fn (array $day): array => $day['meals'])
+            ->firstWhere('id', $menu->id);
+
+        $this->assertSame(false, $meal['opted_in']);
+        $component
             ->call('confirmMeal', $menu->id, true)
             ->assertHasErrors('meal-'.$menu->id);
 

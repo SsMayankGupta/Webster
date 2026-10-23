@@ -25,8 +25,6 @@ class PortalStateBuilder
      */
     public function build(User $student, ?string $billingMonth = null): array
     {
-        $this->bookings->ensureDefaultBookings($student);
-
         $now = CarbonImmutable::now();
         $start = $now->startOfDay();
         $days = [];
@@ -57,7 +55,7 @@ class PortalStateBuilder
                 'is_today' => $offset === 0,
                 'meals' => $menus
                     ->filter(fn (Menu $menu): bool => $menu->serve_at->toDateString() === $date->toDateString())
-                    ->map(fn (Menu $menu): array => $this->meal($menu, $bookings->get($menu->id), $now, $student))
+                    ->map(fn (Menu $menu): array => $this->meal($menu, $bookings->get($menu->id), $now))
                     ->values()
                     ->all(),
             ];
@@ -118,14 +116,13 @@ class PortalStateBuilder
     /**
      * @return array<string, mixed>
      */
-    private function meal(Menu $menu, ?MealBooking $booking, CarbonImmutable $now, User $student): array
+    private function meal(Menu $menu, ?MealBooking $booking, CarbonImmutable $now): array
     {
         $status = $this->lifecycle->stateFor($menu, $now);
         $cutoff = $menu->cutoffAt();
         $open = $now->lt($cutoff);
-        $optedIn = $booking === null || $booking->status === 'booked';
-        $dietaryDefault = $booking?->dietary_pref
-            ?? ($student->dietary_tags[0] ?? null);
+        $isConsumed = $booking?->status === 'consumed';
+        $optedIn = $booking !== null && in_array($booking->status, ['booked', 'consumed'], true);
 
         return [
             'id' => $menu->id,
@@ -148,11 +145,11 @@ class PortalStateBuilder
                 'id' => $booking->id,
                 'status' => $booking->status,
             ],
+            'is_consumed' => $isConsumed,
             'opted_in' => $optedIn,
-            'dietary_pref' => $dietaryDefault,
             'lane' => $booking?->assigned_lane,
-            'can_manage' => $open && $status !== 'closed',
-            'can_cancel' => $open && $status !== 'closed' && $optedIn,
+            'can_manage' => ! $isConsumed && $open && $status !== 'closed',
+            'can_cancel' => ! $isConsumed && $open && $status !== 'closed' && $optedIn,
         ];
     }
 

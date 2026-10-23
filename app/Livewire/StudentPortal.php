@@ -393,6 +393,15 @@ class StudentPortal extends Component
         }
     }
 
+    public function refreshMealState(): void
+    {
+        $student = $this->currentStudent();
+
+        if ($student !== null) {
+            $this->loadPortalState($student);
+        }
+    }
+
     public function refreshQrToken(): void
     {
         $student = $this->currentStudent();
