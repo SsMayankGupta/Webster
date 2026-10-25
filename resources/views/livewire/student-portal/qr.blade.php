@@ -5,7 +5,7 @@
 <div wire:poll.{{ $state['qr']['refresh_seconds'] }}s="refreshQrToken">
     <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div>
-            <h2 class="font-display text-xl font-extrabold tracking-tight">Signed QR check-in</h2>
+            <h2 class="font-lora text-xl font-semibold tracking-tight">Signed QR check-in</h2>
             <p class="text-sm text-slate-500 dark:text-slate-400">
                 A fresh ES256 token every {{ $state['qr']['refresh_seconds'] }} seconds. Valid for {{ $state['qr']['ttl_seconds'] }} seconds, pinned to your lane.
             </p>
@@ -25,7 +25,7 @@
             <div class="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-slate-800">
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Active booking</p>
-                    <p class="mt-1 font-display text-lg font-bold">
+                    <p class="mt-1 font-lora text-lg font-semibold">
                         @if ($booking)
                             {{ ucfirst($booking['meal_type']) }} · {{ $booking['serve_at_label'] }}
                         @else
@@ -64,7 +64,7 @@
                             </div>
                             <div class="text-right">
                                 <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Lane</p>
-                                <p class="font-display text-2xl font-extrabold text-brand-600 dark:text-brand-400">{{ $qrLane ?? '—' }}</p>
+                                <p class="font-lora text-2xl font-semibold text-brand-600 dark:text-brand-400">{{ $qrLane ?? '—' }}</p>
                             </div>
                         </div>
 
@@ -86,7 +86,7 @@
                         <span class="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-300">
                             <svg class="h-7 w-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
                         </span>
-                        <p class="mt-4 font-display text-lg font-bold">Check-in is not open yet</p>
+                        <p class="mt-4 font-lora text-lg font-semibold">Check-in is not open yet</p>
                         <p class="mt-1 max-w-sm text-sm text-slate-500 dark:text-slate-400">
                             {{ $qrError ?? 'Confirm an upcoming meal to generate your signed check-in QR.' }}
                         </p>
@@ -100,7 +100,7 @@
 
         <div class="space-y-4">
             <div class="card p-5">
-                <h3 class="font-display text-base font-bold">How the token is protected</h3>
+                <h3 class="font-lora text-base font-semibold">How the token is protected</h3>
                 <ul class="mt-3 space-y-3 text-sm text-slate-600 dark:text-slate-400">
                     <li class="flex gap-2.5">
                         <svg class="mt-0.5 h-4 w-4 shrink-0 text-brand-600 dark:text-brand-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
@@ -123,7 +123,7 @@
 
             <div class="card p-5">
                 <div class="flex items-center justify-between gap-2">
-                    <h3 class="font-display text-base font-bold">Scanner public key</h3>
+                    <h3 class="font-lora text-base font-semibold">Scanner public key</h3>
                     <a href="{{ $state['qr']['public_key_url'] }}" target="_blank" rel="noopener" class="text-xs font-semibold text-brand-700 hover:text-brand-800 dark:text-brand-300">
                         Download PEM
                     </a>

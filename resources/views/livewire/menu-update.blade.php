@@ -1,94 +1,128 @@
-<div>
-    <div class="space-y-6">
-        <div class="flex items-center justify-between">
-            <h3 class="text-lg font-semibold">Menu Update</h3>
-            <div class="flex gap-2">
-                <button
-                    wire:click="switchWeek('current')"
-                    class="rounded-lg px-4 py-2 text-sm font-medium {{ $selectedWeek === 'current' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-700 hover:bg-slate-300' }}"
-                >
-                    Current Week
-                </button>
-                <button
-                    wire:click="switchWeek('next')"
-                    class="rounded-lg px-4 py-2 text-sm font-medium {{ $selectedWeek === 'next' ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-700 hover:bg-slate-300' }}"
-                >
-                    Next Week
-                </button>
-            </div>
-        </div>
+<div class="font-lora">
+    <div class="space-y-8">
+        <header class="border-b border-slate-200 pb-5 dark:border-slate-800">
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-400">Daily operations</p>
+            <div class="mt-2 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                    <h2 class="text-3xl font-medium tracking-tight text-slate-900 dark:text-white sm:text-4xl">Update menu</h2>
+                    <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                        @if ($previousWeeksLoaded > 0)
+                            Showing previous menu history along with all upcoming scheduled meals.
+                        @else
+                            Showing every scheduled meal from today through all available upcoming dates.
+                        @endif
+                    </p>
+                </div>
 
-        <div class="space-y-4">
-            @foreach($menus as $date => $dayMenus)
-                <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-                    <h4 class="mb-4 font-semibold text-slate-900 dark:text-slate-100">
-                        {{ \Carbon\Carbon::parse($date)->format('l, F j') }}
-                    </h4>
-                    
-                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-                        @foreach(['breakfast', 'lunch', 'snacks', 'dinner'] as $mealType)
-                            <div class="rounded-xl border border-slate-200 p-4 dark:border-slate-700">
-                                <div class="mb-2 flex items-center justify-between">
-                                    <span class="text-sm font-semibold uppercase text-slate-600 dark:text-slate-400">{{ $mealType }}</span>
-                                    @if($dayMenus[$mealType])
-                                        <span class="rounded-full px-2 py-0.5 text-xs font-medium {{ $dayMenus[$mealType]['status'] === 'open' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700' }}">
+                @if ($hasPreviousMenus)
+                    <button
+                        wire:click="loadPreviousData"
+                        wire:loading.attr="disabled"
+                        wire:target="loadPreviousData"
+                        class="rounded-lg border border-emerald-700 px-4 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50 dark:text-emerald-400 dark:hover:bg-emerald-400/10"
+                    >
+                        <span wire:loading.remove wire:target="loadPreviousData">Load previous menu data</span>
+                        <span wire:loading wire:target="loadPreviousData">Loading previous menus...</span>
+                    </button>
+                @endif
+            </div>
+        </header>
+
+        <div class="space-y-8">
+            @php($displayedWeek = null)
+            @forelse ($menus as $date => $dayMenus)
+                @php($weekStart = \Carbon\Carbon::parse($date)->startOfWeek())
+                @if ($displayedWeek !== $weekStart->toDateString())
+                    @php($weekEnd = $weekStart->copy()->endOfWeek())
+                    <div class="border-t border-slate-300 pt-4 dark:border-slate-700">
+                        <h3 class="text-lg font-medium text-slate-800 dark:text-slate-200">
+                            Week of {{ $weekStart->format('M j') }} – {{ $weekEnd->format('M j') }}
+                        </h3>
+                    </div>
+                    @php($displayedWeek = $weekStart->toDateString())
+                @endif
+
+                <section wire:key="menu-day-{{ $date }}" aria-labelledby="menu-day-{{ $date }}-heading">
+                    <div class="mb-4 border-t border-slate-300 pt-4 dark:border-slate-700">
+                        <h4 id="menu-day-{{ $date }}-heading" class="text-xl font-medium text-slate-900 dark:text-white">
+                            {{ \Carbon\Carbon::parse($date)->format('l, F j') }}
+                        </h4>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-x-6 md:grid-cols-2 xl:grid-cols-4">
+                        @foreach (['breakfast', 'lunch', 'snacks', 'dinner'] as $mealType)
+                            <section wire:key="menu-{{ $date }}-{{ $mealType }}" aria-labelledby="menu-{{ $date }}-{{ $mealType }}-heading" class="border-t border-slate-200 py-4 dark:border-slate-800">
+                                <div class="mb-3 flex items-center justify-between gap-3">
+                                    <h4 id="menu-{{ $date }}-{{ $mealType }}-heading" class="text-sm font-semibold uppercase tracking-wide text-slate-700 dark:text-slate-300">{{ $mealType }}</h4>
+                                    @if ($dayMenus[$mealType])
+                                        <span @class([
+                                            'rounded-full px-2.5 py-1 text-xs font-medium capitalize',
+                                            'bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300' => $dayMenus[$mealType]['status'] === 'open',
+                                            'bg-amber-50 text-amber-700 dark:bg-amber-400/10 dark:text-amber-300' => $dayMenus[$mealType]['status'] !== 'open',
+                                        ])>
                                             {{ $dayMenus[$mealType]['status'] }}
                                         </span>
                                     @endif
                                 </div>
-                                
-                                @if($dayMenus[$mealType])
-                                    <div class="space-y-2">
-                                        <div>
-                                            <label class="mb-1 block text-xs text-slate-500">Items (comma separated)</label>
+
+                                @if ($dayMenus[$mealType])
+                                    <div class="space-y-4">
+                                        <div class="space-y-2">
+                                            <label for="menu-{{ $date }}-{{ $mealType }}-items" class="block text-xs font-medium text-slate-600 dark:text-slate-400">Items (comma separated)</label>
                                             <input
+                                                id="menu-{{ $date }}-{{ $mealType }}-items"
                                                 type="text"
                                                 wire:model="menus.{{ $date }}.{{ $mealType }}.items"
-                                                class="w-full rounded border border-slate-300 px-2 py-1.5 text-xs focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-600 dark:bg-slate-700"
+                                                class="input"
                                             >
                                         </div>
+
                                         <div class="grid grid-cols-3 gap-2">
-                                            <div>
-                                                <label class="mb-1 block text-xs text-slate-500">Protein (g)</label>
+                                            <div class="space-y-2">
+                                                <label for="menu-{{ $date }}-{{ $mealType }}-protein" class="block text-xs font-medium text-slate-600 dark:text-slate-400">Protein (g)</label>
                                                 <input
+                                                    id="menu-{{ $date }}-{{ $mealType }}-protein"
                                                     type="number"
                                                     wire:model="menus.{{ $date }}.{{ $mealType }}.protein"
-                                                    class="w-full rounded border border-slate-300 px-2 py-1.5 text-xs focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-600 dark:bg-slate-700"
+                                                    class="input px-2"
                                                 >
                                             </div>
-                                            <div>
-                                                <label class="mb-1 block text-xs text-slate-500">Carbs (g)</label>
+                                            <div class="space-y-2">
+                                                <label for="menu-{{ $date }}-{{ $mealType }}-carbs" class="block text-xs font-medium text-slate-600 dark:text-slate-400">Carbs (g)</label>
                                                 <input
+                                                    id="menu-{{ $date }}-{{ $mealType }}-carbs"
                                                     type="number"
                                                     wire:model="menus.{{ $date }}.{{ $mealType }}.carbs"
-                                                    class="w-full rounded border border-slate-300 px-2 py-1.5 text-xs focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-600 dark:bg-slate-700"
+                                                    class="input px-2"
                                                 >
                                             </div>
-                                            <div>
-                                                <label class="mb-1 block text-xs text-slate-500">Calories</label>
+                                            <div class="space-y-2">
+                                                <label for="menu-{{ $date }}-{{ $mealType }}-calories" class="block text-xs font-medium text-slate-600 dark:text-slate-400">Calories</label>
                                                 <input
+                                                    id="menu-{{ $date }}-{{ $mealType }}-calories"
                                                     type="number"
                                                     wire:model="menus.{{ $date }}.{{ $mealType }}.calories"
-                                                    class="w-full rounded border border-slate-300 px-2 py-1.5 text-xs focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-600 dark:bg-slate-700"
+                                                    class="input px-2"
                                                 >
                                             </div>
                                         </div>
+
                                         <button
                                             wire:click="updateMenu({{ $dayMenus[$mealType]['id'] }}, menus.{{ $date }}.{{ $mealType }})"
-                                            class="w-full rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-indigo-700"
+                                            class="w-full rounded-lg bg-emerald-700 px-3 py-2 text-sm font-medium text-white transition hover:bg-emerald-800"
                                         >
-                                            Update Meal
+                                            Update meal
                                         </button>
                                     </div>
                                 @else
-                                    <div class="text-center text-sm text-slate-400 italic">
-                                        No meal scheduled
-                                    </div>
+                                    <p class="py-2 text-sm italic text-slate-500 dark:text-slate-400">No meal scheduled</p>
                                 @endif
-                            </div>
-                        @endforeach
+                            </section>
+                        @empty
+                            <p class="text-sm text-slate-500 dark:text-slate-400">No upcoming meals scheduled.</p>
+                        @endforelse
                     </div>
-                </div>
+                </section>
             @endforeach
         </div>
     </div>

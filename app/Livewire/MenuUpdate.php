@@ -4,15 +4,25 @@ namespace App\Livewire;
 
 use App\Events\MenuUpdated;
 use App\Models\Menu;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
+use Livewire\Attributes\Title;
 use Livewire\Component;
 
+#[Layout('layouts.contractor')]
+#[Title('Update Menu')]
 class MenuUpdate extends Component
 {
     public array $menus = [];
 
-    public string $selectedWeek = 'current';
+    #[Locked]
+    public int $previousWeeksLoaded = 0;
+
+    #[Locked]
+    public bool $hasPreviousMenus = false;
 
     public function mount(): void
     {
@@ -22,26 +32,35 @@ class MenuUpdate extends Component
     #[On('contractor-logged-in')]
     public function onContractorLoggedIn(): void
     {
+        $this->previousWeeksLoaded = 0;
         $this->loadMenus();
     }
 
     public function loadMenus(): void
     {
-        $startDate = now()->startOfWeek();
-        if ($this->selectedWeek === 'next') {
-            $startDate->addWeek();
+        $today = now()->startOfDay();
+        $startDate = $today->copy();
+
+        if ($this->previousWeeksLoaded > 0) {
+            $startDate = $today->copy()->startOfWeek()->subWeeks($this->previousWeeksLoaded);
         }
 
-        $menus = Menu::query()
-            ->whereDate('serve_at', '>=', $startDate)
-            ->whereDate('serve_at', '<=', $startDate->copy()->addDays(6))
+        $latestUpcomingMenuDate = Menu::query()
+            ->where('serve_at', '>=', $today)
+            ->max('serve_at');
+        $endDate = $latestUpcomingMenuDate === null
+            ? $today->copy()->endOfDay()
+            : Carbon::parse($latestUpcomingMenuDate)->endOfDay();
+
+        $menusByDate = Menu::query()
+            ->where('serve_at', '>=', $startDate)
+            ->where('serve_at', '<=', $endDate)
             ->orderBy('serve_at')
             ->get()
             ->groupBy(fn ($menu) => $menu->serve_at->format('Y-m-d'));
 
         $this->menus = [];
-        for ($i = 0; $i < 7; $i++) {
-            $date = $startDate->copy()->addDays($i)->format('Y-m-d');
+        foreach ($menusByDate as $date => $dayMenus) {
             $this->menus[$date] = [
                 'breakfast' => null,
                 'lunch' => null,
@@ -49,19 +68,31 @@ class MenuUpdate extends Component
                 'dinner' => null,
             ];
 
-            if (isset($menus[$date])) {
-                foreach ($menus[$date] as $menu) {
-                    $this->menus[$date][$menu->meal_type] = [
-                        'id' => $menu->id,
-                        'items' => $menu->menuItems(),
-                        'protein' => $menu->protein,
-                        'carbs' => $menu->carbs,
-                        'calories' => $menu->calories,
-                        'status' => $menu->status,
-                    ];
-                }
+            foreach ($dayMenus as $menu) {
+                $this->menus[$date][$menu->meal_type] = [
+                    'id' => $menu->id,
+                    'items' => $menu->menuItems(),
+                    'protein' => $menu->protein,
+                    'carbs' => $menu->carbs,
+                    'calories' => $menu->calories,
+                    'status' => $menu->status,
+                ];
             }
         }
+
+        $this->hasPreviousMenus = Menu::query()
+            ->where('serve_at', '<', $startDate)
+            ->exists();
+    }
+
+    public function loadPreviousData(): void
+    {
+        if (! $this->hasPreviousMenus) {
+            return;
+        }
+
+        $this->previousWeeksLoaded++;
+        $this->loadMenus();
     }
 
     public function updateMenu(int $menuId, array $data): void
@@ -89,16 +120,8 @@ class MenuUpdate extends Component
         $this->dispatch('portal-toast', message: 'Menu updated successfully!', type: 'success');
     }
 
-    public function switchWeek(string $week): void
-    {
-        $this->selectedWeek = $week;
-        $this->loadMenus();
-    }
-
     public function render()
     {
-        return view('livewire.menu-update')
-            ->layout('layouts.contractor')
-            ->title('Menu Update');
+        return view('livewire.menu-update');
     }
 }

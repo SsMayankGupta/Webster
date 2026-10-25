@@ -5,7 +5,7 @@
 <div wire:poll.60s="refreshMealState">
     <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div>
-            <h2 class="font-display text-xl font-extrabold tracking-tight">Today’s mess menu</h2>
+            <h2 class="font-lora text-xl font-semibold tracking-tight">Today’s mess menu</h2>
             <p class="text-sm text-slate-500 dark:text-slate-400">{{ $today['full_label'] }} · confirmation closes {{ $state['cutoff_hours'] }} hours before serving.</p>
         </div>
         <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
@@ -27,7 +27,7 @@
                 <div class="flex items-start justify-between gap-3 border-b border-slate-100 p-5 dark:border-slate-800">
                     <div>
                         <div class="flex items-center gap-2">
-                            <h3 class="font-display text-lg font-bold">{{ $meal['meal_label'] }}</h3>
+                            <h3 class="font-lora text-lg font-semibold">{{ $meal['meal_label'] }}</h3>
                             @if ($meal['is_consumed'])
                                 <span class="badge-success">Food consumed</span>
                             @elseif ($meal['is_on_approved_leave'])
@@ -155,7 +155,7 @@
             </article>
         @empty
             <div class="card col-span-full p-10 text-center">
-                <p class="font-display text-lg font-bold">No meals scheduled for today.</p>
+                <p class="font-lora text-lg font-semibold">No meals scheduled for today.</p>
                 <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">The weekly grid below shows the next seven days.</p>
             </div>
         @endforelse
@@ -165,7 +165,7 @@
         <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
                 <div class="flex items-center gap-2">
-                    <h2 id="week-schedule-heading" class="font-display text-xl font-extrabold tracking-tight">Your meal week</h2>
+                    <h2 id="week-schedule-heading" class="font-lora text-xl font-semibold tracking-tight">Your meal week</h2>
                     <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-800 dark:text-slate-400">7 days</span>
                 </div>
                 <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Today’s meals can be changed until four hours before serving.</p>
@@ -193,7 +193,7 @@
                                 <span>{{ $day['date'] ? \Illuminate\Support\Carbon::parse($day['date'])->format('M') : '' }}</span>
                             </div>
                             <div>
-                                <h3 class="font-display text-sm font-bold text-slate-900 dark:text-white">{{ $day['label'] }}</h3>
+                                <h3 class="font-lora text-sm font-semibold text-slate-900 dark:text-white">{{ $day['label'] }}</h3>
                                 <p class="text-xs text-slate-500 dark:text-slate-400">{{ $day['full_label'] }}</p>
                             </div>
                         </div>

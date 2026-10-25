@@ -16,13 +16,13 @@
     @if(auth()->guard('contractor')->check())
         <div class="flex min-h-screen">
             <!-- Sidebar -->
-            <aside :class="sidebar ? 'w-64' : 'w-20'" class="sticky top-0 h-screen shrink-0 border-r border-slate-200/70 bg-white transition-all duration-300 dark:border-slate-800 dark:bg-slate-900">
+            <aside :class="sidebar ? 'w-64' : 'w-20'" class="font-lora sticky top-0 h-screen shrink-0 border-r border-slate-200/70 bg-white transition-all duration-300 dark:border-slate-800 dark:bg-slate-900">
             <div class="flex h-16 items-center justify-between px-4">
                 <div class="flex items-center gap-2 overflow-hidden">
                     <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-white shadow-glow">
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                     </span>
-                    <span x-show="sidebar" class="font-display text-lg font-bold">Contractor</span>
+                    <span x-show="sidebar" class="text-lg font-semibold tracking-tight">Contractor</span>
                 </div>
                 <button @click="sidebar = !sidebar" class="btn-ghost !px-2 !py-2">
                     <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
@@ -43,7 +43,11 @@
                     ];
                 @endphp
                 @foreach ($items as [$route,$label,$icon])
-                    <a href="{{ route($route) }}" class="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition {{ request()->routeIs($route.'*') ? 'bg-brand-600 text-white shadow-glow' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800' }}">
+                    <a href="{{ route($route) }}" @class([
+                        'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition',
+                        'bg-brand-600 text-white shadow-glow' => request()->routeIs($route.'*'),
+                        'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800' => ! request()->routeIs($route.'*'),
+                    ]) aria-current="{{ request()->routeIs($route.'*') ? 'page' : 'false' }}">
                         <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $icon }}"/></svg>
                         <span x-show="sidebar" class="truncate">{{ $label }}</span>
                     </a>
@@ -53,12 +57,16 @@
 
                 @php
                     $newItems = [
-                        ['contractor.menu-update','Menu Update','M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15'],
+                        ['contractor.menu-update','Update Menu','M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15'],
                         ['contractor.meal-timing','Meal Timing','M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'],
                     ];
                 @endphp
                 @foreach ($newItems as [$route,$label,$icon])
-                    <a href="{{ route($route) }}" class="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition {{ request()->routeIs($route.'*') ? 'bg-indigo-600 text-white shadow-glow' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800' }}">
+                    <a href="{{ route($route) }}" @class([
+                        'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition',
+                        'bg-brand-600 text-white shadow-glow' => request()->routeIs($route.'*'),
+                        'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800' => ! request()->routeIs($route.'*'),
+                    ]) aria-current="{{ request()->routeIs($route.'*') ? 'page' : 'false' }}">
                         <svg class="h-5 w-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $icon }}"/></svg>
                         <span x-show="sidebar" class="truncate">{{ $label }}</span>
                     </a>
@@ -78,7 +86,7 @@
         <div class="flex min-w-0 flex-1 flex-col">
             <header class="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200/70 bg-white/80 px-6 backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
                 <div>
-                    <h1 class="font-display text-lg font-bold">@yield('title', $title ?? 'Dashboard')</h1>
+                    <h1 class="font-lora text-lg font-medium tracking-tight">@yield('title', $title ?? 'Dashboard')</h1>
                 </div>
                 <div class="flex items-center gap-2">
                     <button @click="dark = !dark" class="btn-ghost !px-2.5 !py-2" aria-label="Toggle theme">

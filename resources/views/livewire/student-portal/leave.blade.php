@@ -7,7 +7,7 @@
         <div class="card p-5">
             <div class="flex items-start justify-between gap-3">
                 <div>
-                    <h2 class="font-display text-xl font-extrabold tracking-tight">Request leave</h2>
+                    <h2 class="font-lora text-xl font-semibold tracking-tight">Request leave</h2>
                     <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
                         Approved days cancel your meals and credit a rebate to your ledger.
                     </p>
@@ -58,7 +58,7 @@
 
         <div class="card overflow-hidden">
             <div class="border-b border-slate-100 px-5 py-4 dark:border-slate-800">
-                <h2 class="font-display text-base font-bold">Leave history</h2>
+                <h2 class="font-lora text-base font-semibold">Leave history</h2>
             </div>
 
             <div class="divide-y divide-slate-100 dark:divide-slate-800">
@@ -105,7 +105,7 @@
     <div class="card overflow-hidden">
         <div class="flex flex-col justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center dark:border-slate-800">
             <div>
-                <h2 class="font-display text-xl font-extrabold tracking-tight">Monthly statement</h2>
+                <h2 class="font-lora text-xl font-semibold tracking-tight">Monthly statement</h2>
                 <p class="text-xs text-slate-500 dark:text-slate-400">Base charge minus rebates, in integer paise.</p>
             </div>
             <select wire:model.live="billingMonth" class="input !w-auto !py-2 text-sm">
@@ -118,15 +118,15 @@
         <div class="grid gap-3 p-5 sm:grid-cols-3">
             <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/60">
                 <p class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Base charge</p>
-                <p class="mt-1 font-display text-xl font-extrabold">₹{{ number_format($billing['base_paise'] / 100, 2) }}</p>
+                <p class="mt-1 font-lora text-xl font-semibold">₹{{ number_format($billing['base_paise'] / 100, 2) }}</p>
             </div>
             <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950/40">
                 <p class="text-[11px] font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Rebates applied</p>
-                <p class="mt-1 font-display text-xl font-extrabold text-emerald-700 dark:text-emerald-300">− ₹{{ number_format($billing['rebate_paise'] / 100, 2) }}</p>
+                <p class="mt-1 font-lora text-xl font-semibold text-emerald-700 dark:text-emerald-300">− ₹{{ number_format($billing['rebate_paise'] / 100, 2) }}</p>
             </div>
             <div class="rounded-xl border border-brand-200 bg-brand-50 p-4 dark:border-brand-500/40 dark:bg-brand-500/10">
                 <p class="text-[11px] font-semibold uppercase tracking-wider text-brand-700 dark:text-brand-300">Net payable</p>
-                <p class="mt-1 font-display text-xl font-extrabold text-brand-800 dark:text-brand-200">₹{{ number_format($billing['net_paise'] / 100, 2) }}</p>
+                <p class="mt-1 font-lora text-xl font-semibold text-brand-800 dark:text-brand-200">₹{{ number_format($billing['net_paise'] / 100, 2) }}</p>
             </div>
         </div>
 

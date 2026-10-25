@@ -6,7 +6,7 @@
     <div class="card p-5">
         <div class="flex items-start justify-between gap-3">
             <div>
-                <h2 class="font-display text-xl font-extrabold tracking-tight">Student profile</h2>
+                <h2 class="font-lora text-xl font-semibold tracking-tight">Student profile</h2>
                 <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Read-only details from your college record.</p>
             </div>
             <span class="badge-success">Verified student</span>
@@ -43,7 +43,7 @@
 
     <div class="space-y-4">
         <div class="card p-5">
-            <h2 class="font-display text-xl font-extrabold tracking-tight">Dietary preferences</h2>
+            <h2 class="font-lora text-xl font-semibold tracking-tight">Dietary preferences</h2>
             <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
                 Global tags travel with every meal confirmation so the kitchen can plan precise headcounts.
             </p>
@@ -69,7 +69,7 @@
         </div>
 
         <div class="card p-5">
-            <h2 class="font-display text-base font-bold">Security</h2>
+            <h2 class="font-lora text-base font-semibold">Security</h2>
             <ul class="mt-3 space-y-2 text-sm text-slate-600 dark:text-slate-400">
                 <li class="flex items-center gap-2">
                     <span class="h-1.5 w-1.5 rounded-full bg-brand-500"></span>

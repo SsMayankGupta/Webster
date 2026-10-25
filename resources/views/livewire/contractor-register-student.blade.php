@@ -1,22 +1,25 @@
-<div class="mx-auto w-full max-w-6xl space-y-6">
-    <header>
-        <h1 class="font-display text-2xl font-semibold text-slate-900 dark:text-white">Students</h1>
-        <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">Register and manage student accounts.</p>
+<div class="font-lora mx-auto w-full max-w-6xl space-y-8">
+    <header class="border-b border-slate-200 pb-5 dark:border-slate-800">
+        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-400">People operations</p>
+        <h1 class="mt-2 text-3xl font-medium tracking-tight text-slate-900 dark:text-white sm:text-4xl">Students</h1>
+        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Register and manage student accounts.</p>
     </header>
 
-    <section class="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
+    <section aria-labelledby="register-student-heading">
         @if ($successMessage)
-            <div role="status" class="mb-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200">
+            <div role="status" class="mb-5 border-y border-emerald-200 py-3 text-sm text-emerald-700 dark:border-emerald-900/50 dark:text-emerald-300">
                 {{ $successMessage }}
             </div>
         @endif
 
-        <h2 class="font-display text-lg font-semibold text-slate-900 dark:text-white">Register a student</h2>
-        <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">Add account details and the student’s mess profile.</p>
+        <div class="mb-5">
+            <h2 id="register-student-heading" class="text-xl font-medium text-slate-900 dark:text-white">Register a student</h2>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Add account details and the student’s mess profile.</p>
+        </div>
 
-        <form wire:submit="register" class="mt-5 space-y-6">
+        <form wire:submit="register" class="space-y-6">
             <section class="space-y-4">
-                <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-200">Account information</h3>
+                <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-400">Account information</h3>
 
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
@@ -57,7 +60,7 @@
             </section>
 
             <section class="space-y-4 border-t border-slate-200 pt-5 dark:border-slate-800">
-                <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-200">Mess profile <span class="font-normal text-slate-500">(optional)</span></h3>
+                <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-400">Mess profile <span class="font-normal normal-case tracking-normal text-slate-500">(optional)</span></h3>
 
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
@@ -83,7 +86,7 @@
                     <legend class="label">Dietary tags</legend>
                     <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
                         @foreach ($dietaryTagOptions as $tag => $label)
-                            <label wire:key="dietary-tag-{{ $tag }}" class="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 dark:border-slate-700 dark:text-slate-300">
+                            <label wire:key="dietary-tag-{{ $tag }}" class="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 transition hover:border-emerald-300 dark:border-slate-700 dark:text-slate-300 dark:hover:border-emerald-700">
                                 <input type="checkbox" wire:model="dietaryTags" value="{{ $tag }}" class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500">
                                 <span>{{ $label }}</span>
                             </label>
@@ -95,7 +98,7 @@
             </section>
 
             <div class="flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between dark:border-slate-800">
-                <p class="text-xs text-slate-600 dark:text-slate-400"><span class="text-rose-500">*</span> Required fields. Student role is assigned automatically.</p>
+                <p class="text-xs text-slate-500 dark:text-slate-400"><span class="text-rose-500">*</span> Required fields. Student role is assigned automatically.</p>
                 <button type="submit" wire:loading.attr="disabled" class="btn-primary">
                     <span wire:loading.remove wire:target="register">Register student</span>
                     <span wire:loading wire:target="register">Registering...</span>
@@ -104,11 +107,11 @@
         </form>
     </section>
 
-    <section class="rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-        <div class="flex flex-col gap-4 border-b border-slate-200 p-5 sm:flex-row sm:items-end sm:justify-between dark:border-slate-800">
+    <section aria-labelledby="all-students-heading">
+        <div class="mb-4 flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between dark:border-slate-800">
             <div>
-                <h2 class="font-display text-lg font-semibold text-slate-900 dark:text-white">All students</h2>
-                <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">Student accounts registered in the system.</p>
+                <h2 id="all-students-heading" class="text-xl font-medium text-slate-900 dark:text-white">All students</h2>
+                <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Student accounts registered in the system.</p>
             </div>
             <div class="w-full sm:max-w-sm">
                 <label for="student-search" class="sr-only">Search students</label>
@@ -123,8 +126,8 @@
         </div>
 
         <div class="overflow-x-auto">
-            <table class="w-full text-left text-sm">
-                <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-600 dark:bg-slate-800/60 dark:text-slate-400">
+            <table class="w-full min-w-[42rem] text-left text-sm">
+                <thead class="border-y border-slate-200 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:text-slate-400">
                     <tr>
                         <th scope="col" class="px-5 py-3 font-semibold">Student</th>
                         <th scope="col" class="px-5 py-3 font-semibold">College ID</th>

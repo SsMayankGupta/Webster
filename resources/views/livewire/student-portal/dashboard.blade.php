@@ -17,7 +17,7 @@
             <p class="text-xs font-bold uppercase tracking-wider text-brand-600 dark:text-brand-400">
                 {{ $displayNow->format('l, d F Y') }}
             </p>
-            <h1 class="mt-1 font-display text-3xl font-extrabold tracking-tight text-slate-950 dark:text-white">
+            <h1 class="mt-1 font-lora text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">
                 {{ $greeting }}, {{ explode(' ', trim($state['student']['name']))[0] }}.
             </h1>
             <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
@@ -44,7 +44,7 @@
                         d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
             </div>
-            <p class="mt-2 font-display text-3xl font-extrabold">{{ $optedInToday }}<span
+            <p class="mt-2 font-lora text-3xl font-semibold">{{ $optedInToday }}<span
                     class="text-lg font-semibold text-slate-400">/{{ count($todayMeals) }}</span></p>
             <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Confirmed plates</p>
         </div>
@@ -61,7 +61,7 @@
                         {{ $nextCutoff['cutoff_label'] }}</p>
                 </div>
             @else
-                <p class="mt-2 font-display text-2xl font-extrabold text-slate-400">None</p>
+                <p class="mt-2 font-lora text-2xl font-semibold text-slate-400">None</p>
                 <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">No open cutoffs</p>
             @endif
         </div>
@@ -75,7 +75,7 @@
                 </svg>
             </div>
             @if ($state['active_booking'])
-                <p class="mt-2 font-display text-3xl font-extrabold">
+                <p class="mt-2 font-lora text-3xl font-semibold">
                     {{ $state['active_booking']['lane'] ?? 'Pending' }}
                 </p>
                 <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
@@ -83,7 +83,7 @@
                     · {{ $state['active_booking']['serve_at_label'] }}
                 </p>
             @else
-                <p class="mt-2 font-display text-2xl font-extrabold text-slate-400">Not pinned</p>
+                <p class="mt-2 font-lora text-2xl font-semibold text-slate-400">Not pinned</p>
                 <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Lane is assigned at lock-in</p>
             @endif
         </div>
@@ -98,7 +98,7 @@
                         d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21l-2.5-2.5L14 21l-2.5-2.5L9 21l-2.5-2.5L4 21V5a2 2 0 012-2h12a2 2 0 012 2v16z" />
                 </svg>
             </div>
-            <p class="mt-2 font-display text-3xl font-extrabold">
+            <p class="mt-2 font-lora text-3xl font-semibold">
                 ₹{{ number_format($state['billing']['net_paise'] / 100, 2) }}</p>
             <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
                 ₹{{ number_format($state['billing']['rebate_paise'] / 100, 2) }} rebated this month</p>

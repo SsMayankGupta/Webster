@@ -4,7 +4,7 @@
     @portal-authenticated.window="connect($event.detail.broadcasting)"
     @portal-logged-out.window="disconnect()"
     @portal-toast.window="toast($event.detail.message, $event.detail.type)"
-    @class(['relative', 'min-h-screen'])
+    @class(['relative', 'min-h-screen', 'font-lora'])
 >
     @include('livewire.student-portal.header')
 

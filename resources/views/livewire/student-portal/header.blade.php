@@ -20,15 +20,21 @@
 <header class="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/85">
     <div class="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 md:grid md:grid-cols-[1fr_auto_1fr] lg:px-8">
         <div class="flex min-w-0 items-center gap-3">
-            <a href="{{ route('home') }}" wire:navigate class="flex items-center gap-2.5">
-                <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-white shadow-glow">
-                    <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 3c-1.5 3.5-5 4.5-5 8a5 5 0 1010 0c0-3.5-3.5-4.5-5-8z"/>
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 11v9"/>
+            <a
+                href="{{ route('home') }}"
+                wire:navigate
+                aria-label="ZeroWasteMess.io home"
+                class="group flex items-center gap-2.5 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-950"
+            >
+                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-glow transition-transform duration-200 group-hover:scale-105">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24" aria-hidden="true">
+                        <circle cx="12" cy="12" r="9" opacity=".55"/>
+                        <circle cx="12" cy="12" r="6.2" opacity=".8"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.7 14.8c1.1-3 3.5-5.2 7.2-5.5-.2 3.7-2.4 6.1-6.1 6.3m.2-.1 3.4-3.4"/>
                     </svg>
                 </span>
-                <span class="truncate font-display text-lg font-extrabold tracking-tight">
-                    Zero Waste<span class="text-brand-600">Mess</span><span class="text-slate-400">.io</span>
+                <span class="truncate font-display text-[17px] font-bold leading-none tracking-tight text-slate-900 dark:text-white">
+                    ZeroWaste<span class="text-brand-600 dark:text-brand-400">Mess</span><span class="ml-0.5 align-top font-sans text-[10px] font-semibold tracking-wide text-slate-400">.io</span>
                 </span>
             </a>
 
