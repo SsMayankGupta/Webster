@@ -26,12 +26,15 @@ class ContractorAuthController extends Controller
         $user = User::where('role', 'contractor')
             ->where(function ($q) use ($credentials) {
                 $q->where('college_id', $credentials['college_id'])
-                  ->orWhere('email', $credentials['college_id']);
-            })->first();
+                    ->orWhere('email', $credentials['college_id']);
+            })
+            ->whereNull('archived_at')
+            ->first();
 
         if ($user && Hash::check($credentials['password'], $user->password)) {
             Auth::guard('contractor')->login($user, $request->boolean('remember'));
             $request->session()->regenerate();
+
             return redirect()->intended(route('contractor.dashboard'));
         }
 
@@ -41,8 +44,10 @@ class ContractorAuthController extends Controller
     public function destroy(Request $request)
     {
         Auth::guard('contractor')->logout();
+        Auth::guard('web')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+
         return redirect('/');
     }
 }

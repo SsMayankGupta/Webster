@@ -7,6 +7,7 @@ use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class AuthenticatedSessionController extends Controller
@@ -26,7 +27,28 @@ class AuthenticatedSessionController extends Controller
     {
         $request->authenticate();
 
+        $user = Auth::guard('web')->user();
+        if (in_array($user?->role, ['contractor', 'warden'], true)) {
+            Auth::guard('web')->logout();
+
+            throw ValidationException::withMessages([
+                'email' => 'Use your role-specific portal to sign in.',
+            ]);
+        }
+
+        if ($user?->role === 'student' && $user->archived_at !== null) {
+            Auth::guard('web')->logout();
+
+            throw ValidationException::withMessages([
+                'email' => 'This account has been deactivated. Contact your contractor for assistance.',
+            ]);
+        }
+
         $request->session()->regenerate();
+
+        if ($user?->role === 'student' && $user->must_change_password) {
+            return redirect()->route('password.first-login');
+        }
 
         return redirect()->intended(route('dashboard', absolute: false));
     }

@@ -27,11 +27,11 @@
                 </h2>
                 <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
                     @if ($authMode === 'reset')
-                        Your college email is verified. Choose a password with at least 8 characters.
+                        Choose a password with at least 8 characters.
                     @elseif ($authMode === 'forgot')
-                        We will email a verification link to your registered college address.
+                        We will email a password reset link to your registered college address.
                     @else
-                        Use the college email or ID registered by your hostel admin.
+                        Use the email address or student ID provided by your contractor.
                     @endif
                 </p>
             </div>
@@ -157,10 +157,7 @@
                         <span wire:loading wire:target="login">Verifying…</span>
                     </button>
 
-                    <p class="text-center text-xs text-slate-400">
-                        Accounts are pre-registered by your hostel admin. Email verification is sent to your college
-                        address.
-                    </p>
+                    <p class="text-center text-xs text-slate-400">Sign in with the email or student ID provided by your contractor.</p>
                 </form>
             @elseif ($authMode === 'forgot')
                 <form wire:submit="sendPasswordResetLink" class="space-y-5">

@@ -22,6 +22,13 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         ResetPassword::createUrlUsing(function (User $user, string $token): string {
+            if ($user->isWarden()) {
+                return route('warden.password.reset', [
+                    'token' => $token,
+                    'email' => $user->email,
+                ]);
+            }
+
             return route('home', [
                 'reset_token' => $token,
                 'email' => $user->email,

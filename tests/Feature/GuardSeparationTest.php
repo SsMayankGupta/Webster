@@ -24,8 +24,10 @@ class GuardSeparationTest extends TestCase
     {
         $contractor = User::create(['name' => 'C', 'college_id' => 'C1', 'password' => Hash::make('password'), 'role' => 'contractor']);
 
-        $response = $this->actingAs($contractor, 'contractor')->get('/student/dashboard');
+        $response = $this->actingAs($contractor, 'contractor')->get('/student');
 
-        $this->assertTrue(in_array($response->getStatusCode(), [302, 403]));
+        $response->assertOk();
+        $response->assertSee('Sign in to access');
+        $response->assertDontSee('Today’s mess menu');
     }
 }

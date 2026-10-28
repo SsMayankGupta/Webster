@@ -4,15 +4,25 @@ use App\Http\Controllers\Portal\PortalMealController;
 use App\Http\Controllers\Portal\PortalQrController;
 use App\Http\Controllers\ProfileController;
 use App\Livewire\StudentPortal;
-use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\Auth\FirstLoginPasswordController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', StudentPortal::class)->name('home');
+Route::view('/', 'portal-chooser')->name('home');
+Route::get('/student', StudentPortal::class)->middleware(['portal.account.active', 'password.change.completed'])->name('student.portal');
+
+Route::middleware(['auth', 'portal.account.active', 'password.change.completed'])->group(function (): void {
+    Route::get('/password/first-login', [FirstLoginPasswordController::class, 'create'])
+        ->withoutMiddleware('password.change.completed')
+        ->name('password.first-login');
+    Route::put('/password/first-login', [FirstLoginPasswordController::class, 'update'])
+        ->withoutMiddleware('password.change.completed')
+        ->name('password.first-login.update');
+});
 
 Route::get('/portal/qr/public-key', [PortalQrController::class, 'publicKey'])
     ->name('portal.qr.public-key');
 
-Route::prefix('portal')->name('portal.')->middleware('auth:student')->group(function () {
+Route::prefix('portal')->name('portal.')->middleware(['auth:student', 'portal.account.active', 'password.change.completed'])->group(function () {
     Route::post('/meals/{menu}/confirm', [PortalMealController::class, 'confirm'])
         ->name('meals.confirm');
     Route::post('/meals/{menu}/cancel', [PortalMealController::class, 'cancel'])
@@ -20,7 +30,10 @@ Route::prefix('portal')->name('portal.')->middleware('auth:student')->group(func
 });
 
 Route::get('/dashboard', function () {
-    $user = Auth::user();
+    $user = auth()->user();
+    if ($user?->role === 'warden') {
+        return redirect()->route('warden.dashboard');
+    }
     if ($user?->role === 'contractor') {
         return redirect()->route('contractor.dashboard');
     }
@@ -28,10 +41,10 @@ Route::get('/dashboard', function () {
         return redirect()->route('admin.dashboard');
     }
 
-    return redirect('/');
+    return redirect()->route('student.portal');
 })->middleware('auth')->name('dashboard');
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'portal.account.active', 'password.change.completed'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');

@@ -7,8 +7,8 @@ use App\Livewire\ContractorHeadcount;
 use App\Livewire\ContractorLeave;
 use App\Livewire\ContractorLogin;
 use App\Livewire\ContractorMenuBuilder;
-use App\Livewire\ContractorRegisterStudent;
 use App\Livewire\ContractorStaff;
+use App\Livewire\ContractorStudents;
 use App\Livewire\ContractorTicket;
 use App\Livewire\ContractorWaste;
 use App\Livewire\MealTimingManager;
@@ -23,7 +23,7 @@ Route::prefix('contractor')->name('contractor.')->group(function () {
         return view('layouts.contractor');
     })->name('about')->middleware('guest');
 
-    Route::middleware('auth:contractor')->group(function () {
+    Route::middleware(['auth:contractor', 'portal.account.active', 'password.change.completed'])->group(function () {
         Route::get('/dashboard', ContractorDashboard::class)->name('dashboard');
         Route::get('/menu-builder', ContractorMenuBuilder::class)->name('menu-builder');
         Route::get('/menu-update', MenuUpdate::class)->name('menu-update');
@@ -32,7 +32,8 @@ Route::prefix('contractor')->name('contractor.')->group(function () {
         Route::get('/waste', ContractorWaste::class)->name('waste.index');
         Route::get('/leaves', ContractorLeave::class)->name('leaves.index');
         Route::get('/staff', ContractorStaff::class)->name('staff');
-        Route::get('/students/create', ContractorRegisterStudent::class)->name('students.create');
+        Route::get('/students', ContractorStudents::class)->name('students.index');
+        Route::get('/students/create', fn () => redirect()->route('contractor.students.index'))->name('students.create');
         Route::get('/tickets', ContractorTicket::class)->name('tickets.index');
         Route::get('/scanner', [ScanController::class, 'index'])->name('scanner');
     });

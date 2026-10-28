@@ -84,10 +84,20 @@ class StudentPortal extends Component
     public function mount(): void
     {
         $this->billingMonth = now()->format('Y-m');
+        if (session()->has('status')) {
+            $this->showAuth = true;
+            $this->authMessage = (string) session('status');
+        }
 
         $student = $this->currentStudent();
 
         if ($student !== null) {
+            if ($student->must_change_password) {
+                $this->redirectRoute('password.first-login');
+
+                return;
+            }
+
             $this->isAuthenticated = true;
             $this->loadPortalState($student);
         }
@@ -170,7 +180,7 @@ class StudentPortal extends Component
         if ($student === null) {
             $this->addError(
                 'email',
-                'This email / College ID is not registered as an active mess student. Please contact your hostel admin.',
+                'This email / College ID is not registered as a student account. Please contact your contractor.',
             );
 
             return;
@@ -193,7 +203,7 @@ class StudentPortal extends Component
         $student = $this->findStudentByIdentifier($identifier);
 
         if ($student === null) {
-            $this->addError('email', 'This email / College ID is not registered as an active mess student.');
+            $this->addError('email', 'This email / College ID is not registered as a student account.');
 
             return;
         }
@@ -222,6 +232,12 @@ class StudentPortal extends Component
         session()->regenerate();
 
         $this->password = '';
+        if ($student->must_change_password) {
+            $this->redirectRoute('password.first-login');
+
+            return;
+        }
+
         $this->showAuth = false;
         $this->isAuthenticated = true;
         $this->activeTab = 'meals';
@@ -272,7 +288,7 @@ class StudentPortal extends Component
         $status = Password::sendResetLink(['email' => $student->email]);
 
         if ($status === Password::RESET_LINK_SENT) {
-            $this->authMessage = 'A verification link has been sent to your college email. Open it to set a new password.';
+            $this->authMessage = 'A password reset link has been sent to your college email.';
 
             return;
         }
@@ -298,7 +314,10 @@ class StudentPortal extends Component
                 'token' => $this->resetToken,
             ],
             function (User $user, string $password): void {
-                $user->forceFill(['password' => $password])->save();
+                $user->forceFill([
+                    'password' => $password,
+                    'must_change_password' => false,
+                ])->save();
             },
         );
 
@@ -519,13 +538,13 @@ class StudentPortal extends Component
     {
         $student = Auth::guard('student')->user();
 
-        if ($student instanceof User && $student->isStudent()) {
+        if ($student instanceof User && $student->isStudent() && $student->archived_at === null) {
             return $student;
         }
 
         $user = Auth::user();
 
-        return $user instanceof User && $user->isStudent() ? $user : null;
+        return $user instanceof User && $user->isStudent() && $user->archived_at === null ? $user : null;
     }
 
     private function requireStudent(): User
@@ -533,6 +552,7 @@ class StudentPortal extends Component
         $student = $this->currentStudent();
 
         abort_if($student === null, 403, 'Student authentication required.');
+        abort_if($student->must_change_password, 403, 'Change your initial password before using the student portal.');
 
         return $student;
     }
@@ -541,6 +561,7 @@ class StudentPortal extends Component
     {
         return User::query()
             ->where('role', 'student')
+            ->whereNull('archived_at')
             ->where(function ($query) use ($identifier): void {
                 $query->where('email', $identifier)
                     ->orWhere('college_id', $identifier);

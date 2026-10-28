@@ -34,7 +34,7 @@ class MenuSeederTest extends TestCase
             ->where('meal_time_slot_id', $breakfastSlot->id)
             ->firstOrFail();
 
-        $this->assertDatabaseCount('users', 12);
+        $this->assertSame(12, User::query()->where('role', '!=', 'warden')->count());
         $this->assertDatabaseCount('meal_time_slots', 4);
         $this->assertDatabaseCount('menus', 56);
         $this->assertDatabaseHas('menus', [
@@ -45,7 +45,7 @@ class MenuSeederTest extends TestCase
 
         $this->seed();
 
-        $this->assertDatabaseCount('users', 12);
+        $this->assertSame(12, User::query()->where('role', '!=', 'warden')->count());
         $this->assertDatabaseCount('meal_time_slots', 4);
         $this->assertDatabaseCount('menus', 56);
         $this->assertModelExists($admin);

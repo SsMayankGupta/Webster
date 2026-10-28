@@ -35,6 +35,13 @@ return [
         ],
     ],
 
+    'twilio' => [
+        'account_sid' => env('TWILIO_ACCOUNT_SID'),
+        'auth_token' => env('TWILIO_AUTH_TOKEN'),
+        'from' => env('TWILIO_FROM'),
+        'default_country_code' => env('TWILIO_DEFAULT_COUNTRY_CODE', '+91'),
+    ],
+
     'edamam' => [
         'app_id' => env('EDAMAM_APP_ID'),
         'app_key' => env('EDAMAM_APP_KEY'),

@@ -13,10 +13,10 @@ class PortalPageTest extends TestCase
 
     public function test_guest_sees_locked_feature_showcase(): void
     {
-        $response = $this->get('/');
+        $response = $this->get('/student');
 
         $response->assertOk();
-        $response->assertSee('Zero-waste campus dining');
+        $response->assertSee('Eat well.');
         $response->assertSee('Sign in to access');
         $response->assertSee('Weekly Meal Schedule');
         $response->assertSee('Atomic Pre-Cutoff Cancellations');
@@ -27,12 +27,12 @@ class PortalPageTest extends TestCase
     {
         $student = $this->student();
 
-        $response = $this->actingAs($student, 'student')->get('/');
+        $response = $this->actingAs($student, 'student')->get('/student');
 
         $response->assertOk();
         $response->assertSee($student->name);
         $response->assertSee('Today’s mess menu');
-        $response->assertSee('Seven-day schedule');
+        $response->assertSee('Next cutoff');
         $response->assertDontSee('Sign in to access');
     }
 
@@ -45,6 +45,16 @@ class PortalPageTest extends TestCase
         $response->assertSee('BEGIN PUBLIC KEY');
     }
 
+    public function test_home_page_only_offers_student_and_contractor_portals(): void
+    {
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('Choose your portal')
+            ->assertSee(route('student.portal'))
+            ->assertSee(route('contractor.login'))
+            ->assertDontSee(route('warden.login'));
+    }
+
     private function student(): User
     {
         return User::create([
@@ -54,6 +64,10 @@ class PortalPageTest extends TestCase
             'password' => Hash::make('password'),
             'role' => 'student',
             'hostel' => 'Ganga',
+            'phone' => '+919999000002',
+            'email_verified_at' => now(),
+            'phone_verified_at' => now(),
+            'account_approved_at' => now(),
         ]);
     }
 }

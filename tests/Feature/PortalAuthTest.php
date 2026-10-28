@@ -36,7 +36,7 @@ class PortalAuthTest extends TestCase
             ->assertHasErrors('email');
 
         $this->assertStringContainsString(
-            'not registered as an active mess student',
+            'not registered as a student account',
             $component->errors()->first('email'),
         );
     }
@@ -85,6 +85,47 @@ class PortalAuthTest extends TestCase
             ->assertSet('isAuthenticated', true);
 
         $this->assertAuthenticatedAs($student, 'student');
+    }
+
+    public function test_archived_student_cannot_sign_in(): void
+    {
+        $student = $this->student();
+        $student->forceFill(['archived_at' => now()])->save();
+
+        Livewire::test(StudentPortal::class)
+            ->set('email', $student->email)
+            ->set('password', 'password')
+            ->call('login')
+            ->assertHasErrors('email')
+            ->assertSet('isAuthenticated', false);
+
+        $this->assertGuest('student');
+    }
+
+    public function test_archived_student_cannot_continue_using_an_existing_session(): void
+    {
+        $student = $this->student();
+        $student->forceFill(['archived_at' => now()])->save();
+
+        $this->actingAs($student, 'student')
+            ->get(route('student.portal'))
+            ->assertRedirect(route('home'))
+            ->assertSessionHas('status');
+
+        $this->assertGuest('student');
+    }
+
+    public function test_archived_student_cannot_sign_in_through_the_standard_login_form(): void
+    {
+        $student = $this->student();
+        $student->forceFill(['archived_at' => now()])->save();
+
+        $this->post(route('login'), [
+            'email' => $student->email,
+            'password' => 'password',
+        ])->assertSessionHasErrors('email');
+
+        $this->assertGuest();
     }
 
     public function test_wrong_password_keeps_the_guest_state(): void
@@ -156,6 +197,10 @@ class PortalAuthTest extends TestCase
             'email' => 'asha@college.edu',
             'password' => Hash::make('password'),
             'role' => 'student',
+            'email_verified_at' => now(),
+            'phone' => '+919999000001',
+            'phone_verified_at' => now(),
+            'account_approved_at' => now(),
         ]);
     }
 }
