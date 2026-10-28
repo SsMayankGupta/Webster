@@ -105,6 +105,35 @@
         </div>
     </div>
 
+    <section aria-labelledby="student-help-heading" class="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6">
+        <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-brand-700 dark:text-brand-400">Support</p>
+            <h2 id="student-help-heading" class="mt-2 font-display text-xl font-semibold text-slate-900 dark:text-white">Need help?</h2>
+            <p class="mt-1 text-sm text-slate-600 dark:text-slate-300">Reach out to your hostel team for help with meals, bookings, or your account.</p>
+        </div>
+        <div class="mt-5 grid gap-4 sm:grid-cols-2">
+            @foreach ([
+                ['label' => 'Your contractor', 'contact' => $state['help_contacts']['contractor'] ?? null],
+                ['label' => 'Your warden', 'contact' => $state['help_contacts']['warden'] ?? null],
+            ] as $helpContact)
+                <article class="rounded-xl bg-slate-50 p-4 dark:bg-slate-800/70">
+                    <h3 class="font-ui text-sm font-semibold text-slate-900 dark:text-white">{{ $helpContact['label'] }}</h3>
+                    @if ($helpContact['contact'])
+                        <p class="mt-2 text-sm font-medium text-slate-800 dark:text-slate-100">{{ $helpContact['contact']['name'] }}</p>
+                        @if (filled($helpContact['contact']['email']))
+                            <a href="mailto:{{ $helpContact['contact']['email'] }}" class="mt-1 block break-all text-sm text-brand-700 hover:underline dark:text-brand-400">{{ $helpContact['contact']['email'] }}</a>
+                        @endif
+                        @if (filled($helpContact['contact']['phone']))
+                            <a href="tel:{{ $helpContact['contact']['phone'] }}" class="mt-1 block text-sm text-brand-700 hover:underline dark:text-brand-400">{{ $helpContact['contact']['phone'] }}</a>
+                        @endif
+                    @else
+                        <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">Contact details are not available. Please contact hostel administration.</p>
+                    @endif
+                </article>
+            @endforeach
+        </div>
+    </section>
+
     <div class="mt-6 flex gap-2 overflow-x-auto pb-1 lg:hidden">
         @foreach ([['meals', 'Meals'], ['qr', 'QR Check-In'], ['leave', 'Leave & Rebates'], ['profile', 'Profile']] as [$key, $label])
             <button type="button" wire:click="setTab('{{ $key }}')"

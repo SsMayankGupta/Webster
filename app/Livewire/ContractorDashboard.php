@@ -7,6 +7,7 @@ use App\Models\Menu;
 use App\Models\WasteTransaction;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -20,6 +21,9 @@ class ContractorDashboard extends Component
     public array $todayMenus = [];
 
     public array $recentWaste = [];
+
+    #[Locked]
+    public array $wardenContact = [];
 
     public array $wasteTypes = [
         'compost' => 'Compost',
@@ -46,6 +50,16 @@ class ContractorDashboard extends Component
         if ($contractor === null || $contractor->role !== 'contractor') {
             return;
         }
+
+        $warden = $contractor->warden()
+            ->where('role', 'warden')
+            ->whereNull('archived_at')
+            ->first(['id', 'name', 'email', 'phone']);
+        $this->wardenContact = $warden === null ? [] : [
+            'name' => $warden->name,
+            'email' => $warden->email,
+            'phone' => $warden->phone,
+        ];
 
         $todayMenus = Menu::query()
             ->whereDate('serve_at', today())

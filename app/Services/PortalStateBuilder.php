@@ -26,6 +26,18 @@ class PortalStateBuilder
      */
     public function build(User $student, ?string $billingMonth = null): array
     {
+        $student->loadMissing([
+            'contractor' => fn ($query) => $query
+                ->select('id', 'name', 'email', 'phone', 'warden_id')
+                ->where('role', 'contractor')
+                ->whereNull('archived_at'),
+            'contractor.warden' => fn ($query) => $query
+                ->select('id', 'name', 'email', 'phone')
+                ->where('role', 'warden')
+                ->whereNull('archived_at'),
+        ]);
+        $contractor = $student->contractor;
+
         $now = CarbonImmutable::now();
         $broadcastConnection = (string) config('broadcasting.default');
         $broadcastConfig = config("broadcasting.connections.{$broadcastConnection}", []);
@@ -90,6 +102,18 @@ class PortalStateBuilder
                 'college_id' => $student->college_id,
                 'hostel' => $student->hostel,
                 'dietary_tags' => array_values($student->dietary_tags ?? []),
+            ],
+            'help_contacts' => [
+                'contractor' => $contractor === null ? null : [
+                    'name' => $contractor->name,
+                    'email' => $contractor->email,
+                    'phone' => $contractor->phone,
+                ],
+                'warden' => $contractor?->warden === null ? null : [
+                    'name' => $contractor->warden->name,
+                    'email' => $contractor->warden->email,
+                    'phone' => $contractor->warden->phone,
+                ],
             ],
             'server_now' => $now->toIso8601String(),
             'cutoff_hours' => (int) config('mess.cutoff_hours'),

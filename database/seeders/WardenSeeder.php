@@ -11,15 +11,30 @@ class WardenSeeder extends Seeder
 {
     public function run(): void
     {
-        $warden = (array) config('warden.initial');
+        foreach ([
+            'initial' => (array) config('warden.initial'),
+            'second' => (array) config('warden.second'),
+        ] as $wardenKey => $warden) {
+            $this->seedWarden($warden, $wardenKey);
+        }
+    }
 
-        if (blank($warden['email'] ?? null) && blank($warden['password'] ?? null)) {
+    /**
+     * @param  array<string, mixed>  $warden
+     */
+    private function seedWarden(array $warden, string $wardenKey): void
+    {
+        $configuredFields = ['name', 'phone', 'email', 'employee_id', 'hostel', 'registered_at', 'password'];
+        $hasConfiguration = collect($configuredFields)
+            ->contains(fn (string $field): bool => filled($warden[$field] ?? null));
+
+        if (! $hasConfiguration) {
             return;
         }
 
         foreach (['name', 'phone', 'email', 'employee_id', 'hostel', 'password'] as $requiredField) {
             if (blank($warden[$requiredField] ?? null)) {
-                throw new InvalidArgumentException("The initial warden configuration is missing {$requiredField}.");
+                throw new InvalidArgumentException("The {$wardenKey} warden configuration is missing {$requiredField}.");
             }
         }
 

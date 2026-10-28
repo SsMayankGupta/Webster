@@ -7,8 +7,7 @@
     <title>@yield('title', $title ?? 'ZeroWasteMess.io') - Contractor</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Gabriela&family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
 </head>
@@ -16,7 +15,7 @@
     @if(auth()->guard('contractor')->check())
         <div class="flex min-h-screen">
             <!-- Sidebar -->
-            <aside :class="sidebar ? 'w-64' : 'w-20'" class="font-lora sticky top-0 h-screen shrink-0 border-r border-slate-200/70 bg-white transition-all duration-300 dark:border-slate-800 dark:bg-slate-900">
+            <aside :class="sidebar ? 'w-64' : 'w-20'" class="font-ui sticky top-0 h-screen shrink-0 border-r border-slate-200/70 bg-white transition-all duration-300 dark:border-slate-800 dark:bg-slate-900">
             <div class="flex h-16 items-center justify-between px-4">
                 <div class="flex items-center gap-2 overflow-hidden">
                     <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-white shadow-glow">

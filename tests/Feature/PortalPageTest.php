@@ -36,6 +36,58 @@ class PortalPageTest extends TestCase
         $response->assertDontSee('Sign in to access');
     }
 
+    public function test_authenticated_student_can_see_only_their_assigned_contractor_and_warden_contact_details(): void
+    {
+        $warden = User::query()->create([
+            'name' => 'Warden Contact',
+            'email' => 'warden-contact@college.edu',
+            'phone' => '+919999000101',
+            'password' => 'password',
+            'role' => 'warden',
+        ]);
+        $contractor = User::query()->create([
+            'name' => 'Assigned Contractor',
+            'employee_id' => 'PRIVATE-CONTRACTOR-ID',
+            'email' => 'assigned-contractor@college.edu',
+            'phone' => '+919999000102',
+            'password' => 'password',
+            'role' => 'contractor',
+            'warden_id' => $warden->id,
+            'hostel' => 'Ganga',
+        ]);
+        $otherWarden = User::query()->create([
+            'name' => 'Other Warden',
+            'email' => 'other-warden@college.edu',
+            'password' => 'password',
+            'role' => 'warden',
+        ]);
+        User::query()->create([
+            'name' => 'Other Contractor',
+            'email' => 'other-contractor@college.edu',
+            'password' => 'password',
+            'role' => 'contractor',
+            'warden_id' => $otherWarden->id,
+            'hostel' => 'Other Hostel',
+        ]);
+        $student = $this->student();
+        $student->forceFill(['contractor_id' => $contractor->id])->save();
+
+        $this->actingAs($student, 'student')
+            ->get('/student')
+            ->assertOk()
+            ->assertSee('Need help?')
+            ->assertSee('Assigned Contractor')
+            ->assertSee('assigned-contractor@college.edu')
+            ->assertSee('+919999000102')
+            ->assertSee('Warden Contact')
+            ->assertSee('warden-contact@college.edu')
+            ->assertSee('+919999000101')
+            ->assertDontSee('Other Contractor')
+            ->assertDontSee('other-contractor@college.edu')
+            ->assertDontSee('Other Warden')
+            ->assertDontSee('PRIVATE-CONTRACTOR-ID');
+    }
+
     public function test_scanner_public_key_is_available_for_offline_verification(): void
     {
         $response = $this->get(route('portal.qr.public-key'));

@@ -13,9 +13,10 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                sans: ['Inter', '"Plus Jakarta Sans"', ...defaultTheme.fontFamily.sans],
-                display: ['"Plus Jakarta Sans"', ...defaultTheme.fontFamily.sans],
-                lora: ['Lora', ...defaultTheme.fontFamily.serif],
+                sans: ['Lato', ...defaultTheme.fontFamily.sans],
+                display: ['Gabriela', ...defaultTheme.fontFamily.serif],
+                ui: ['Nunito', ...defaultTheme.fontFamily.sans],
+                lora: ['Gabriela', ...defaultTheme.fontFamily.serif],
                 mono: ['"JetBrains Mono"', ...defaultTheme.fontFamily.mono],
             },
             colors: {

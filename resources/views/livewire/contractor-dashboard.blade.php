@@ -8,6 +8,25 @@
             <p class="text-sm text-slate-500 dark:text-slate-400">{{ now()->format('l, F j') }}</p>
         </header>
 
+        <section aria-labelledby="contractor-help-heading" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-6">
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700 dark:text-emerald-400">Support</p>
+            <h3 id="contractor-help-heading" class="mt-2 text-xl font-medium text-slate-900 dark:text-white">Need help?</h3>
+            <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">Contact your warden for support with your hostel workspace.</p>
+            @if ($wardenContact)
+                <div class="mt-4 rounded-xl bg-slate-50 p-4 dark:bg-slate-800/70">
+                    <p class="font-medium text-slate-900 dark:text-white">{{ $wardenContact['name'] }}</p>
+                    @if (filled($wardenContact['email']))
+                        <a href="mailto:{{ $wardenContact['email'] }}" class="mt-1 block break-all text-sm text-emerald-700 hover:underline dark:text-emerald-400">{{ $wardenContact['email'] }}</a>
+                    @endif
+                    @if (filled($wardenContact['phone']))
+                        <a href="tel:{{ $wardenContact['phone'] }}" class="mt-1 block text-sm text-emerald-700 hover:underline dark:text-emerald-400">{{ $wardenContact['phone'] }}</a>
+                    @endif
+                </div>
+            @else
+                <p class="mt-4 text-sm text-slate-500 dark:text-slate-400">Warden contact details are not available. Please contact hostel administration.</p>
+            @endif
+        </section>
+
         <section aria-label="Today's summary" class="grid grid-cols-1 divide-y divide-slate-200 border-y border-slate-200 bg-white dark:divide-slate-800 dark:border-slate-800 dark:bg-slate-900 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
             <div class="px-5 py-5 sm:px-6">
                 <p class="text-sm text-slate-500 dark:text-slate-400">Meals today</p>
