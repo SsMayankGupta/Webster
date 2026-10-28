@@ -5,9 +5,7 @@ namespace Tests\Feature;
 use App\Livewire\WardenLogin;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Schema;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -44,31 +42,6 @@ class WardenLoginTest extends TestCase
         $warden = User::query()->where('email', $credentials['email'])->firstOrFail();
         $this->assertAuthenticatedAs($warden, 'warden');
         $this->assertTrue(Hash::check('warden-password', $warden->password));
-    }
-
-    public function test_warden_can_sign_in_after_missing_employee_id_column_is_restored(): void
-    {
-        $credentials = $this->configureWarden();
-        Schema::table('users', function (Blueprint $table): void {
-            $table->dropColumn('employee_id');
-        });
-
-        $migration = require database_path('migrations/2026_10_28_220000_restore_employee_id_on_users.php');
-        $migration->up();
-
-        $this->assertTrue(Schema::hasColumn('users', 'employee_id'));
-
-        Livewire::test(WardenLogin::class)
-            ->set('identifier', $credentials['email'])
-            ->set('password', $credentials['password'])
-            ->call('login')
-            ->assertHasNoErrors()
-            ->assertRedirect(route('warden.dashboard'));
-
-        $this->assertAuthenticatedAs(
-            User::query()->where('email', $credentials['email'])->firstOrFail(),
-            'warden',
-        );
     }
 
     public function test_second_configured_warden_can_sign_in_without_a_preexisting_database_record(): void

@@ -8,15 +8,17 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (! Schema::hasColumn('users', 'employee_id')) {
-            Schema::table('users', function (Blueprint $table): void {
-                $table->string('employee_id')->nullable()->unique();
-            });
+        if (Schema::hasColumn('users', 'employee_id')) {
+            return;
         }
+
+        Schema::table('users', function (Blueprint $table): void {
+            $table->string('employee_id')->nullable()->unique();
+        });
     }
 
     public function down(): void
     {
-        // This migration repairs schema drift and must not remove an existing column.
+        // employee_id is part of the users schema from an earlier migration.
     }
 };
