@@ -11,6 +11,9 @@
     @error('deletion')
         <p role="alert" class="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300">{{ $message }}</p>
     @enderror
+    @error('archive')
+        <p role="alert" class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">{{ $message }}</p>
+    @enderror
 
     <section class="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900 sm:p-8">
         <h2 class="text-xl font-semibold text-slate-900 dark:text-white">{{ $editingStudentId ? 'Edit student details' : 'Add a student' }}</h2>

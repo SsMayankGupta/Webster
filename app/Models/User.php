@@ -18,7 +18,8 @@ class User extends Authenticatable
         'name', 'college_id', 'email', 'email_verified_at', 'password', 'role',
         'hostel', 'dietary_pref', 'dietary_tags', 'weight_log', 'mess_id',
         'phone', 'employee_id', 'registered_at', 'phone_verified_at',
-        'account_approved_at', 'warden_id', 'contractor_id',
+        'account_approved_at', 'warden_id', 'contractor_id', 'semester_name',
+        'semester_starts_at', 'semester_ends_at',
     ];
 
     protected $hidden = ['password', 'remember_token'];
@@ -32,6 +33,8 @@ class User extends Authenticatable
             'archived_at' => 'datetime',
             'must_change_password' => 'boolean',
             'registered_at' => 'date',
+            'semester_starts_at' => 'date',
+            'semester_ends_at' => 'date',
             'password' => 'hashed',
             'weight_log' => 'array',
             'dietary_tags' => 'array',
@@ -93,6 +96,26 @@ class User extends Authenticatable
     public function rebateLedgers()
     {
         return $this->hasMany(RebateLedger::class, 'student_id');
+    }
+
+    public function feePayments(): HasMany
+    {
+        return $this->hasMany(StudentFeePayment::class, 'student_id');
+    }
+
+    public function mealRefunds(): HasMany
+    {
+        return $this->hasMany(MealRefund::class, 'student_id');
+    }
+
+    public function extraMealCharges(): HasMany
+    {
+        return $this->hasMany(ExtraMealCharge::class, 'student_id');
+    }
+
+    public function extraMealCollections(): HasMany
+    {
+        return $this->hasMany(ExtraMealCollection::class, 'student_id');
     }
 
     public function wasteTransactions()

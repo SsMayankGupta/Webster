@@ -9,6 +9,7 @@ use App\Services\NutritionApiService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -34,11 +35,17 @@ class ContractorMenuBuilder extends Component
 
     public ?int $selectedWeek = null;
 
+    #[Locked]
+    public string $menuStartDate = '';
+
+    #[Locked]
+    public array $days = [];
+
     public array $scheduledMenuDates = [];
 
     public bool $scheduleCreatedSuccessfully = false;
 
-    public array $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    public int $skippedMenuSlots = 0;
 
     public array $mealTypes = ['breakfast', 'lunch', 'snacks', 'dinner'];
 
@@ -46,6 +53,7 @@ class ContractorMenuBuilder extends Component
 
     public function mount(): void
     {
+        $this->initializeMenuWeek();
         $this->loadPastWeeks();
         $this->initializeSchedule();
         $this->loadScheduledMenuDates();
@@ -54,26 +62,42 @@ class ContractorMenuBuilder extends Component
     #[On('contractor-logged-in')]
     public function onContractorLoggedIn(): void
     {
+        $this->initializeMenuWeek();
         $this->loadPastWeeks();
+        $this->schedule = [];
         $this->initializeSchedule();
         $this->loadScheduledMenuDates();
     }
 
-    private function nextMenuWeekStart(): Carbon
+    private function initializeMenuWeek(): void
     {
-        return Carbon::now()->startOfWeek()->addWeek();
+        $this->menuStartDate = today(config('mess.display_timezone'))->toDateString();
+        $startDate = $this->menuWeekStart();
+        $this->days = collect(range(0, 6))
+            ->map(fn (int $offset): string => $startDate->copy()->addDays($offset)->format('l'))
+            ->all();
+    }
+
+    private function menuWeekStart(): Carbon
+    {
+        return Carbon::parse($this->menuStartDate, config('mess.display_timezone'))->startOfDay();
+    }
+
+    private function menuWeekEnd(): Carbon
+    {
+        return $this->menuWeekStart()->addDays(6);
     }
 
     private function loadScheduledMenuDates(): void
     {
-        $startDate = $this->nextMenuWeekStart();
-        $endDate = $startDate->copy()->addDays(6)->endOfDay();
+        $startDate = $this->menuWeekStart();
+        $endDate = $this->menuWeekEnd()->endOfDay();
 
         $this->scheduledMenuDates = Menu::query()
-            ->whereBetween('serve_at', [$startDate, $endDate])
+            ->whereBetween('serve_at', [$startDate->copy()->utc(), $endDate->copy()->utc()])
             ->orderBy('serve_at')
             ->get(['serve_at'])
-            ->map(fn (Menu $menu): string => $menu->serve_at->toDateString())
+            ->map(fn (Menu $menu): string => $menu->serve_at->timezone(config('mess.display_timezone'))->toDateString())
             ->unique()
             ->map(fn (string $date): string => Carbon::parse($date)->format('l, F j'))
             ->values()
@@ -82,16 +106,19 @@ class ContractorMenuBuilder extends Component
 
     private function loadPastWeeks(): void
     {
-        $this->pastWeeks = Menu::query()
+        $dates = Menu::query()
             ->where('serve_at', '<', now())
-            ->selectRaw('DATE(serve_at) as date, meal_type')
-            ->orderByDesc('date')
-            ->limit(28)
-            ->get()
-            ->groupBy('date')
-            ->map(fn ($group) => [
-                'date' => $group->first()->date,
-                'label' => Carbon::parse($group->first()->date)->format('M j, Y'),
+            ->orderByDesc('serve_at')
+            ->limit(112)
+            ->get(['serve_at'])
+            ->map(fn (Menu $menu): string => $menu->serve_at->timezone(config('mess.display_timezone'))->toDateString())
+            ->unique()
+            ->take(28);
+
+        $this->pastWeeks = $dates
+            ->map(fn (string $date): array => [
+                'date' => $date,
+                'label' => Carbon::parse($date, config('mess.display_timezone'))->format('M j, Y'),
             ])
             ->values()
             ->toArray();
@@ -205,7 +232,10 @@ class ContractorMenuBuilder extends Component
 
     public function clonePastWeek(): void
     {
-        if ($this->selectedWeek === null) {
+        $this->scheduleCreatedSuccessfully = false;
+        $this->skippedMenuSlots = 0;
+
+        if ($this->selectedWeek === null || ! array_key_exists($this->selectedWeek, $this->pastWeeks)) {
             $this->dispatch('portal-toast', message: 'Please select a week to clone.', type: 'error');
 
             return;
@@ -219,10 +249,12 @@ class ContractorMenuBuilder extends Component
             return;
         }
 
-        $startDate = Carbon::parse($this->pastWeeks[$this->selectedWeek]['date']);
+        $startDate = Carbon::parse($this->pastWeeks[$this->selectedWeek]['date'], config('mess.display_timezone'))->startOfDay();
         $menus = Menu::query()
-            ->whereDate('serve_at', '>=', $startDate->toDateString())
-            ->whereDate('serve_at', '<=', $startDate->copy()->addDays(6)->toDateString())
+            ->whereBetween('serve_at', [
+                $startDate->copy()->utc(),
+                $startDate->copy()->addDays(6)->endOfDay()->utc(),
+            ])
             ->get();
 
         if ($menus->isEmpty()) {
@@ -231,11 +263,36 @@ class ContractorMenuBuilder extends Component
             return;
         }
 
-        $newStartDate = $this->nextMenuWeekStart();
+        $newStartDate = $this->menuWeekStart();
+        $timeSlots = MealTimeSlot::query()
+            ->get()
+            ->keyBy(fn (MealTimeSlot $slot): string => strtolower($slot->meal_type));
+        $existingSlots = Menu::query()
+            ->whereBetween('serve_at', [
+                $newStartDate->copy()->utc(),
+                $this->menuWeekEnd()->endOfDay()->utc(),
+            ])
+            ->get(['serve_at', 'meal_type'])
+            ->mapWithKeys(fn (Menu $menu): array => [
+                $menu->serve_at->timezone(config('mess.display_timezone'))->toDateString().'|'.$menu->meal_type => true,
+            ]);
+        $createdMenus = 0;
+        $skippedMenus = 0;
 
         foreach ($menus as $menu) {
-            $daysDiff = $menu->serve_at->diffInDays($startDate);
-            $newServeAt = $newStartDate->copy()->addDays($daysDiff)->setTimeFrom($menu->serve_at);
+            $localMenuDate = $menu->serve_at->copy()->timezone(config('mess.display_timezone'));
+            $daysDiff = (int) $startDate->diffInDays($localMenuDate->copy()->startOfDay());
+            $timeSlot = $timeSlots->get($menu->meal_type);
+            $newServeAt = $newStartDate->copy()->addDays($daysDiff);
+            $newServeAt->setTimeFromTimeString($timeSlot?->start_time ?? $localMenuDate->format('H:i:s'));
+            $slotKey = $newServeAt->toDateString().'|'.$menu->meal_type;
+            $newServeAt->utc();
+
+            if ($existingSlots->has($slotKey)) {
+                $skippedMenus++;
+
+                continue;
+            }
 
             $newMenu = Menu::query()->create([
                 'meal_type' => $menu->meal_type,
@@ -248,18 +305,40 @@ class ContractorMenuBuilder extends Component
                 'is_locked' => false,
                 'status' => 'open',
                 'headcount_locked' => false,
+                'meal_time_slot_id' => $timeSlot?->id,
             ]);
 
+            $existingSlots->put($slotKey, true);
             broadcast(new MenuUpdated($newMenu));
+            $createdMenus++;
+        }
+
+        if ($createdMenus === 0) {
+            $this->skippedMenuSlots = $skippedMenus;
+            $this->dispatch(
+                'portal-toast',
+                message: 'All meals from that week already have menus in the current seven-day period.',
+                type: 'info',
+            );
+
+            return;
         }
 
         $this->loadScheduledMenuDates();
         $this->scheduleCreatedSuccessfully = true;
-        $this->dispatch('portal-toast', message: 'Menu cloned successfully for next week!', type: 'success');
+        $this->skippedMenuSlots = $skippedMenus;
+        $message = 'Menu cloned successfully for the current seven-day period!';
+        if ($skippedMenus > 0) {
+            $message .= " {$skippedMenus} existing meal slot(s) were left unchanged.";
+        }
+        $this->dispatch('portal-toast', message: $message, type: 'success');
     }
 
     public function saveSchedule(): void
     {
+        $this->scheduleCreatedSuccessfully = false;
+        $this->skippedMenuSlots = 0;
+
         $contractor = Auth::user();
 
         if ($contractor === null || $contractor->role !== 'contractor') {
@@ -268,10 +347,22 @@ class ContractorMenuBuilder extends Component
             return;
         }
 
-        $timeSlots = MealTimeSlot::all()->keyBy('meal_type');
-        $startDate = $this->nextMenuWeekStart();
+        $timeSlots = MealTimeSlot::query()
+            ->get()
+            ->keyBy(fn (MealTimeSlot $slot): string => strtolower($slot->meal_type));
+        $startDate = $this->menuWeekStart();
+        $existingSlots = Menu::query()
+            ->whereBetween('serve_at', [
+                $startDate->copy()->utc(),
+                $this->menuWeekEnd()->endOfDay()->utc(),
+            ])
+            ->get(['serve_at', 'meal_type'])
+            ->mapWithKeys(fn (Menu $menu): array => [
+                $menu->serve_at->timezone(config('mess.display_timezone'))->toDateString().'|'.$menu->meal_type => true,
+            ]);
         $nutritionService = app(NutritionApiService::class);
         $createdMenus = 0;
+        $skippedMenus = 0;
 
         foreach ($this->days as $dayIndex => $day) {
             foreach ($this->mealTypes as $mealType) {
@@ -284,12 +375,20 @@ class ContractorMenuBuilder extends Component
                 $timeSlot = $timeSlots->get($mealType);
 
                 $serveAt = $startDate->copy()->addDays($dayIndex);
-                if ($timeSlot) {
-                    $serveAt->setTimeFromTimeString($timeSlot->start_time);
+                $startTime = $timeSlot?->start_time
+                    ?? config("mess.default_meal_times.{$mealType}.start_time", '00:00');
+                $serveAt->setTimeFromTimeString($startTime);
+
+                $slotKey = $serveAt->toDateString().'|'.$mealType;
+                if ($existingSlots->has($slotKey)) {
+                    $skippedMenus++;
+
+                    continue;
                 }
 
                 $items = array_map('trim', explode(',', $entry['items']));
                 $nutritionData = $nutritionService->getNutritionForIngredients($items);
+                $serveAt->utc();
 
                 $menu = Menu::query()->create([
                     'meal_type' => $mealType,
@@ -305,29 +404,39 @@ class ContractorMenuBuilder extends Component
                     'meal_time_slot_id' => $timeSlot?->id,
                 ]);
 
+                $existingSlots->put($slotKey, true);
                 broadcast(new MenuUpdated($menu));
                 $createdMenus++;
             }
         }
 
         if ($createdMenus === 0) {
-            $this->dispatch('portal-toast', message: 'Add at least one meal before saving the schedule.', type: 'error');
+            $this->skippedMenuSlots = $skippedMenus;
+            $message = $skippedMenus > 0
+                ? 'Those day and meal slots already have menus. Existing menus were left unchanged.'
+                : 'Add at least one meal before saving the schedule.';
+            $this->dispatch('portal-toast', message: $message, type: $skippedMenus > 0 ? 'info' : 'error');
 
             return;
         }
 
         $this->loadScheduledMenuDates();
         $this->scheduleCreatedSuccessfully = true;
-        $this->dispatch('portal-toast', message: 'Schedule saved successfully!', type: 'success');
+        $this->skippedMenuSlots = $skippedMenus;
+        $message = 'Schedule saved successfully!';
+        if ($skippedMenus > 0) {
+            $message .= " {$skippedMenus} existing meal slot(s) were left unchanged.";
+        }
+        $this->dispatch('portal-toast', message: $message, type: 'success');
     }
 
     public function render()
     {
-        $menuWeekStart = $this->nextMenuWeekStart();
+        $menuWeekStart = $this->menuWeekStart();
 
         return view('livewire.contractor-menu-builder', [
             'menuWeekStart' => $menuWeekStart,
-            'menuWeekEnd' => $menuWeekStart->copy()->addDays(6),
+            'menuWeekEnd' => $this->menuWeekEnd(),
         ]);
     }
 }

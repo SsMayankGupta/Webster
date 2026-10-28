@@ -87,7 +87,7 @@ class MenuSeeder extends Seeder
         $snacksItems = ['Samosa', 'Pakora', 'Tea/Coffee', 'Sandwich', 'Biscuits', 'Fruits'];
         $dinnerItems = ['Roti', 'Paneer Butter Masala', 'Chicken Biryani', 'Dal Makhani', 'Vegetable Pulao', 'Mixed Veg'];
 
-        $today = Carbon::now()->startOfWeek();
+        $today = Carbon::now(config('mess.display_timezone'))->startOfWeek();
         $mealTimeSlots = MealTimeSlot::query()->get()->keyBy('meal_type');
 
         for ($weekOffset = 0; $weekOffset < 2; $weekOffset++) {
@@ -120,7 +120,7 @@ class MenuSeeder extends Seeder
                         continue;
                     }
 
-                    $serveAt = $currentDate->copy()->setTimeFromTimeString($timeSlot->start_time);
+                    $serveAt = $currentDate->copy()->setTimeFromTimeString($timeSlot->start_time)->utc();
 
                     Menu::query()->updateOrCreate(
                         [

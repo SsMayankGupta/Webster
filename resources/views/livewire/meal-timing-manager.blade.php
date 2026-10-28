@@ -6,6 +6,10 @@
             <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Set service hours and booking cutoffs for each meal.</p>
         </header>
 
+        @if ($statusMessage)
+            <p role="status" class="border-l-2 border-emerald-700 bg-emerald-50/70 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-400 dark:bg-emerald-950/30 dark:text-emerald-200">{{ $statusMessage }}</p>
+        @endif
+
         <section aria-labelledby="meal-timing-heading">
             <div class="mb-4">
                 <h3 id="meal-timing-heading" class="text-xl font-medium text-slate-900 dark:text-white">Service schedule</h3>
@@ -23,9 +27,12 @@
                                 <input
                                     id="meal-{{ $mealType }}-start"
                                     type="time"
-                                    wire:model.live="timeSlots.{{ $mealType }}.start_time"
+                                    wire:model="timeSlots.{{ $mealType }}.start_time"
                                     class="input"
                                 >
+                                @error("timeSlots.$mealType.start_time")
+                                    <p role="alert" class="text-sm text-rose-700 dark:text-rose-300">{{ $message }}</p>
+                                @enderror
                             </div>
 
                             <div class="space-y-2">
@@ -33,9 +40,12 @@
                                 <input
                                     id="meal-{{ $mealType }}-end"
                                     type="time"
-                                    wire:model.live="timeSlots.{{ $mealType }}.end_time"
+                                    wire:model="timeSlots.{{ $mealType }}.end_time"
                                     class="input"
                                 >
+                                @error("timeSlots.$mealType.end_time")
+                                    <p role="alert" class="text-sm text-rose-700 dark:text-rose-300">{{ $message }}</p>
+                                @enderror
                             </div>
 
                             <div class="space-y-2">
@@ -43,11 +53,14 @@
                                 <input
                                     id="meal-{{ $mealType }}-cutoff"
                                     type="number"
-                                    wire:model.live="timeSlots.{{ $mealType }}.cutoff_hours_before"
+                                    wire:model="timeSlots.{{ $mealType }}.cutoff_hours_before"
                                     min="1"
                                     max="24"
                                     class="input"
                                 >
+                                @error("timeSlots.$mealType.cutoff_hours_before")
+                                    <p role="alert" class="text-sm text-rose-700 dark:text-rose-300">{{ $message }}</p>
+                                @enderror
                             </div>
                         </div>
                     </section>
@@ -56,6 +69,7 @@
 
             <div class="mt-5 flex flex-wrap items-center gap-3">
                 <button
+                    type="button"
                     wire:click="saveTimings"
                     wire:loading.attr="disabled"
                     wire:target="saveTimings"
@@ -74,10 +88,10 @@
             </div>
 
             <ul class="divide-y divide-slate-200 border-y border-slate-200 text-sm leading-6 text-slate-600 dark:divide-slate-800 dark:border-slate-800 dark:text-slate-400">
-                <li class="py-3"><span class="font-medium text-slate-800 dark:text-slate-200">Start time:</span> When meal service begins and students can check in.</li>
-                <li class="py-3"><span class="font-medium text-slate-800 dark:text-slate-200">End time:</span> When meal service ends and QR check-in closes.</li>
+                <li class="py-3"><span class="font-medium text-slate-800 dark:text-slate-200">Start time:</span> When meal service begins. Future unlocked menus will be moved to this time.</li>
+                <li class="py-3"><span class="font-medium text-slate-800 dark:text-slate-200">End time:</span> When meal service ends and the meal is marked closed.</li>
                 <li class="py-3"><span class="font-medium text-slate-800 dark:text-slate-200">Cutoff before:</span> Hours before the meal when booking and cancellation are locked.</li>
-                <li class="py-3">Changes apply immediately to the student portal.</li>
+                <li class="py-3">Times are shown in {{ config('mess.display_timezone') }} and apply to future unlocked menus in the student portal.</li>
             </ul>
         </section>
     </div>

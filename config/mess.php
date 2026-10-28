@@ -14,6 +14,13 @@ return [
 
     'cutoff_hours' => (int) env('MESS_CUTOFF_HOURS', 4),
 
+    'default_meal_times' => [
+        'breakfast' => ['start_time' => '07:00', 'end_time' => '09:00', 'cutoff_hours_before' => 4],
+        'lunch' => ['start_time' => '12:00', 'end_time' => '14:00', 'cutoff_hours_before' => 4],
+        'snacks' => ['start_time' => '16:00', 'end_time' => '17:00', 'cutoff_hours_before' => 4],
+        'dinner' => ['start_time' => '19:00', 'end_time' => '21:00', 'cutoff_hours_before' => 4],
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Display Timezone

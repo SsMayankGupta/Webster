@@ -6,7 +6,7 @@
     <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
         <div>
             <h2 class="font-lora text-xl font-semibold tracking-tight">Today’s mess menu</h2>
-            <p class="text-sm text-slate-500 dark:text-slate-400">{{ $today['full_label'] }} · confirmation closes {{ $state['cutoff_hours'] }} hours before serving.</p>
+            <p class="text-sm text-slate-500 dark:text-slate-400">{{ $today['full_label'] }} · service hours and booking cutoff are shown on each meal.</p>
         </div>
         <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
             <span class="relative flex h-2 w-2">
@@ -117,7 +117,7 @@
                                     @endif
                                 </div>
                                 <p class="text-[11px] text-slate-400">
-                                    Opt in before the four-hour cutoff to be included in the headcount and eligible for this meal.
+                                    Opt in before this meal’s {{ $meal['cutoff_hours'] }}-hour cutoff to be included in the headcount.
                                 </p>
                             </div>
 
@@ -168,7 +168,7 @@
                     <h2 id="week-schedule-heading" class="font-lora text-xl font-semibold tracking-tight">Your meal week</h2>
                     <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-800 dark:text-slate-400">7 days</span>
                 </div>
-                <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Today’s meals can be changed until four hours before serving.</p>
+                <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Service hours and meal-specific booking cutoffs are shown on each meal.</p>
             </div>
             <button type="button" wire:click="setTab('profile')" class="self-start text-xs font-semibold text-brand-700 hover:text-brand-800 sm:self-auto dark:text-brand-300">
                 Manage dietary preferences <span aria-hidden="true">→</span>

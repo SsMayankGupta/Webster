@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
+use App\Services\ExtraMealBillingService;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -112,6 +113,19 @@ class ContractorStudents extends Component
     public function archiveStudent(int $studentId): void
     {
         $student = $this->contractor()->students()->findOrFail($studentId);
+
+        if ($student->mealBookings()->where('is_guest_pass', true)->where('status', 'pending_approval')->exists()) {
+            $this->addError('archive', 'Resolve this student’s pending guest-meal requests before deactivating the account.');
+
+            return;
+        }
+
+        if (app(ExtraMealBillingService::class)->summary($student)['outstanding_paise'] > 0) {
+            $this->addError('archive', 'Collect the outstanding guest-meal balance before deactivating the account.');
+
+            return;
+        }
+
         $student->forceFill(['archived_at' => now()])->save();
         $this->resetPage();
 
@@ -149,6 +163,10 @@ class ContractorStudents extends Component
             || $student->leaveRequests()->exists()
             || $student->tickets()->exists()
             || $student->rebateLedgers()->exists()
+            || $student->feePayments()->exists()
+            || $student->mealRefunds()->exists()
+            || $student->extraMealCharges()->exists()
+            || $student->extraMealCollections()->exists()
             || $student->mealFeedbacks()->exists()
         ) {
             $this->addError('deletion', 'This student has portal or financial history that must be preserved. The account can remain deactivated, but cannot be permanently deleted.');

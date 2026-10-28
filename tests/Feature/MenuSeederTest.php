@@ -39,7 +39,7 @@ class MenuSeederTest extends TestCase
         $this->assertDatabaseCount('menus', 56);
         $this->assertDatabaseHas('menus', [
             'meal_type' => 'breakfast',
-            'serve_at' => '2026-10-19 07:00:00',
+            'serve_at' => '2026-10-19 01:30:00',
         ]);
         $this->assertModelExists($admin);
 

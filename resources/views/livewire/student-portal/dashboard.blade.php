@@ -135,7 +135,7 @@
     </section>
 
     <div class="mt-6 flex gap-2 overflow-x-auto pb-1 lg:hidden">
-        @foreach ([['meals', 'Meals'], ['qr', 'QR Check-In'], ['leave', 'Leave & Rebates'], ['profile', 'Profile']] as [$key, $label])
+        @foreach ([['meals', 'Meals'], ['qr', 'QR Check-In'], ['guests', 'Guest Meals'], ['leave', 'Leave & Rebates'], ['profile', 'Profile']] as [$key, $label])
             <button type="button" wire:click="setTab('{{ $key }}')"
                 class="shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition {{ $activeTab === $key ? 'border-brand-600 bg-brand-600 text-white' : 'border-slate-200 bg-white text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300' }}">
                 {{ $label }}
@@ -148,6 +148,8 @@
             @include('livewire.student-portal.meals')
         @elseif ($activeTab === 'qr')
             @include('livewire.student-portal.qr')
+        @elseif ($activeTab === 'guests')
+            <livewire:guest-pass-request />
         @elseif ($activeTab === 'leave')
             @include('livewire.student-portal.leave')
         @else

@@ -117,7 +117,7 @@ class StudentPortal extends Component
 
     public function setTab(string $tab): void
     {
-        if (! in_array($tab, ['meals', 'qr', 'leave', 'profile'], true)) {
+        if (! in_array($tab, ['meals', 'qr', 'guests', 'leave', 'profile'], true)) {
             return;
         }
 

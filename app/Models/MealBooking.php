@@ -52,4 +52,9 @@ class MealBooking extends Model
     {
         return $this->belongsTo(User::class, 'primary_student_id');
     }
+
+    public function extraMealCharge(): HasOne
+    {
+        return $this->hasOne(ExtraMealCharge::class, 'booking_id');
+    }
 }

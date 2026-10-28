@@ -4,8 +4,12 @@ namespace App\Services;
 
 use App\Models\LeaveRequest;
 use App\Models\MealBooking;
+use App\Models\MealRefund;
 use App\Models\Menu;
+use App\Models\ExtraMealCharge;
+use App\Models\ExtraMealCollection;
 use App\Models\RebateLedger;
+use App\Models\StudentFeePayment;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 
@@ -28,7 +32,16 @@ class PortalStateBuilder
     {
         $student->loadMissing([
             'contractor' => fn ($query) => $query
-                ->select('id', 'name', 'email', 'phone', 'warden_id')
+                ->select(
+                    'id',
+                    'name',
+                    'email',
+                    'phone',
+                    'warden_id',
+                    'semester_name',
+                    'semester_starts_at',
+                    'semester_ends_at',
+                )
                 ->where('role', 'contractor')
                 ->whereNull('archived_at'),
             'contractor.warden' => fn ($query) => $query
@@ -38,7 +51,7 @@ class PortalStateBuilder
         ]);
         $contractor = $student->contractor;
 
-        $now = CarbonImmutable::now();
+        $now = CarbonImmutable::now(config('mess.display_timezone'));
         $broadcastConnection = (string) config('broadcasting.default');
         $broadcastConfig = config("broadcasting.connections.{$broadcastConnection}", []);
         $broadcastOptions = $broadcastConfig['options'] ?? [];
@@ -48,7 +61,11 @@ class PortalStateBuilder
         $days = [];
 
         $menus = Menu::query()
-            ->whereBetween('serve_at', [$start, $start->addDays(7)])
+            ->whereBetween('serve_at', [
+                $start->copy()->utc(),
+                $start->addDays(6)->endOfDay()->utc(),
+            ])
+            ->with('mealTimeSlot')
             ->orderBy('serve_at')
             ->get();
 
@@ -79,12 +96,15 @@ class PortalStateBuilder
                 'is_today' => $offset === 0,
                 'is_on_approved_leave' => $this->approvedLeaves->containsDate($approvedLeaves, $date),
                 'meals' => $menus
-                    ->filter(fn (Menu $menu): bool => $menu->serve_at->toDateString() === $date->toDateString())
+                    ->filter(fn (Menu $menu): bool => $menu->serve_at->timezone(config('mess.display_timezone'))->toDateString() === $date->toDateString())
                     ->map(fn (Menu $menu): array => $this->meal(
                         $menu,
                         $bookings->get($menu->id),
                         $now,
-                        $this->approvedLeaves->containsDate($approvedLeaves, $menu->serve_at),
+                        $this->approvedLeaves->containsDate(
+                            $approvedLeaves,
+                            $menu->serve_at->timezone(config('mess.display_timezone'))->startOfDay(),
+                        ),
                     ))
                     ->values()
                     ->all(),
@@ -128,7 +148,7 @@ class PortalStateBuilder
                 'menu_id' => $activeBooking->menu_id,
                 'meal_type' => $activeBooking->menu->meal_type,
                 'serve_at' => $activeBooking->menu->serve_at->toIso8601String(),
-                'serve_at_label' => $this->displayTime($activeBooking->menu),
+                'serve_at_label' => $this->displayServiceWindow($activeBooking->menu),
                 'lane' => $activeBooking->assigned_lane,
                 'meal_status' => $this->lifecycle->stateFor($activeBooking->menu, $now),
                 'can_check_in' => in_array($this->lifecycle->stateFor($activeBooking->menu, $now), ['locked', 'serving'], true),
@@ -136,6 +156,7 @@ class PortalStateBuilder
             'leaves' => $this->leaveSummary($student),
             'billing' => $this->billing->statement($student, $billingMonth),
             'billing_months' => $this->billing->monthOptions(),
+            'wallet' => $this->walletSummary($student, $contractor),
             'qr' => [
                 'ttl_seconds' => (int) config('mess.qr.ttl_seconds'),
                 'refresh_seconds' => (int) config('mess.qr.refresh_seconds'),
@@ -176,10 +197,14 @@ class PortalStateBuilder
             'meal_label' => ucfirst($menu->meal_type),
             'serve_at' => $menu->serve_at->toIso8601String(),
             'serve_timestamp' => $menu->serve_at->getTimestamp() * 1000,
-            'serve_at_label' => $this->displayTime($menu),
+            'serve_at_label' => $this->displayServiceWindow($menu),
             'cutoff_at' => $cutoff->toIso8601String(),
             'cutoff_timestamp' => $cutoff->getTimestamp() * 1000,
             'cutoff_label' => $cutoff->timezone(config('mess.display_timezone'))->format('D, d M g:i A'),
+            'cutoff_hours' => (int) (
+                $menu->mealTimeSlot?->cutoff_hours_before
+                    ?? config("mess.default_meal_times.{$menu->meal_type}.cutoff_hours_before", config('mess.cutoff_hours'))
+            ),
             'status' => $status,
             'status_label' => ucfirst($status),
             'is_open' => $open && $status === 'open',
@@ -200,11 +225,16 @@ class PortalStateBuilder
         ];
     }
 
-    private function displayTime(Menu $menu): string
+    private function displayServiceWindow(Menu $menu): string
     {
-        return $menu->serve_at
-            ->timezone(config('mess.display_timezone'))
-            ->format('D, d M · g:i A');
+        $startAt = $menu->serve_at->copy()->timezone(config('mess.display_timezone'));
+        $endTime = $menu->mealTimeSlot?->end_time
+            ?? config("mess.default_meal_times.{$menu->meal_type}.end_time");
+        $endAt = $endTime === null
+            ? $startAt->copy()->addHours(3)
+            : $startAt->copy()->setTimeFromTimeString($endTime);
+
+        return $startAt->format('D, d M · g:i A').' – '.$endAt->format('g:i A');
     }
 
     /**
@@ -251,5 +281,112 @@ class PortalStateBuilder
             })
             ->values()
             ->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function walletSummary(User $student, ?User $contractor): array
+    {
+        $semesterRange = $contractor?->semester_starts_at !== null && $contractor->semester_ends_at !== null
+            ? [
+                $contractor->semester_starts_at->copy()->startOfDay(),
+                $contractor->semester_ends_at->copy()->endOfDay(),
+            ]
+            : null;
+        $feeQuery = $student->feePayments();
+        $refundQuery = $student->mealRefunds();
+        $rebateQuery = $student->rebateLedgers();
+        $extraMealChargeQuery = $student->extraMealCharges();
+        $extraMealCollectionQuery = $student->extraMealCollections();
+
+        if ($semesterRange !== null) {
+            $feeQuery->whereBetween('created_at', $semesterRange);
+            $refundQuery->whereBetween('created_at', $semesterRange);
+            $rebateQuery->whereBetween('created_at', $semesterRange);
+            $extraMealChargeQuery->whereBetween('created_at', $semesterRange);
+            $extraMealCollectionQuery->whereBetween('created_at', $semesterRange);
+        }
+
+        $feePayments = $student->feePayments()
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit(20)
+            ->get();
+        $refunds = $student->mealRefunds()
+            ->with('leaveRequest:id,from_date,to_date')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit(20)
+            ->get();
+        $extraMealCharges = $student->extraMealCharges()
+            ->with('booking.menu:id,meal_type,serve_at')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit(20)
+            ->get();
+        $extraMealCollections = $student->extraMealCollections()
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit(20)
+            ->get();
+        $leaveRebatePaise = (clone $rebateQuery)->get()->sum(
+            fn (RebateLedger $rebate): int => (int) ($rebate->amount_paise
+                ?? round(((float) $rebate->amount) * 100))
+        );
+        $periodLabel = $semesterRange === null
+            ? 'All time · semester dates not set'
+            : (($contractor->semester_name ?: 'Current semester').' · '
+                .$contractor->semester_starts_at->format('d M Y').' – '
+                .$contractor->semester_ends_at->format('d M Y'));
+
+        return [
+            'period_label' => $periodLabel,
+            'period_start' => $semesterRange === null ? null : $semesterRange[0]->toDateString(),
+            'period_end' => $semesterRange === null ? null : $semesterRange[1]->toDateString(),
+            'fee_paid_paise' => (int) $feeQuery->sum('amount_paise'),
+            'fee_payments' => $feePayments->map(fn (StudentFeePayment $payment): array => [
+                'id' => $payment->id,
+                'amount_paise' => $payment->amount_paise,
+                'date' => $payment->created_at->format('d M Y'),
+            ])->values()->all(),
+            'meal_refund_paise' => (int) $refundQuery->sum('amount_paise'),
+            'transferred_refund_paise' => (int) (clone $refundQuery)
+                ->where('status', 'transferred')
+                ->sum('amount_paise'),
+            'pending_refund_paise' => (int) (clone $refundQuery)
+                ->where('status', 'pending')
+                ->sum('amount_paise'),
+            'refunds' => $refunds->map(fn (MealRefund $refund): array => [
+                'id' => $refund->id,
+                'amount_paise' => $refund->amount_paise,
+                'status' => $refund->status,
+                'date' => $refund->created_at->format('d M Y'),
+                'leave_from' => $refund->leaveRequest?->from_date?->format('d M Y'),
+                'leave_to' => $refund->leaveRequest?->to_date?->format('d M Y'),
+                'transferred_at' => $refund->transferred_at?->format('d M Y'),
+            ])->values()->all(),
+            'approved_leave_rebate_paise' => (int) $leaveRebatePaise,
+            'extra_meal_charged_paise' => (int) $extraMealChargeQuery->sum('amount_paise'),
+            'extra_meal_collected_paise' => (int) $extraMealCollectionQuery->sum('amount_paise'),
+            'extra_meal_outstanding_paise' => max(
+                0,
+                (int) (clone $extraMealChargeQuery)->sum('amount_paise')
+                    - (int) (clone $extraMealCollectionQuery)->sum('amount_paise'),
+            ),
+            'extra_meal_charges' => $extraMealCharges->map(fn (ExtraMealCharge $charge): array => [
+                'id' => $charge->id,
+                'amount_paise' => $charge->amount_paise,
+                'guest_count' => $charge->guest_count,
+                'price_per_guest_paise' => $charge->price_per_guest_paise,
+                'meal_type' => $charge->booking?->menu?->meal_type,
+                'date' => $charge->created_at->format('d M Y'),
+            ])->values()->all(),
+            'extra_meal_collections' => $extraMealCollections->map(fn (ExtraMealCollection $collection): array => [
+                'id' => $collection->id,
+                'amount_paise' => $collection->amount_paise,
+                'date' => $collection->created_at->format('d M Y'),
+            ])->values()->all(),
+        ];
     }
 }

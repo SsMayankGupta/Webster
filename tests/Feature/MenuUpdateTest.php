@@ -2,11 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Events\MenuUpdated;
 use App\Livewire\MenuUpdate;
 use App\Models\Menu;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Event;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -112,5 +114,140 @@ class MenuUpdateTest extends TestCase
             ->assertSet('menus.2026-10-24.lunch.id', $upcomingMenu->id)
             ->assertDontSee('Load previous menu data')
             ->assertSee('Update menu');
+    }
+
+    public function test_contractor_can_update_a_meal_from_the_bound_form_values(): void
+    {
+        $this->travelTo('2026-10-28 10:00:00');
+
+        $contractor = User::query()->create([
+            'name' => 'Contractor',
+            'college_id' => 'CONTRACTOR008',
+            'email' => 'contractor8@college.edu',
+            'password' => 'password',
+            'role' => 'contractor',
+        ]);
+        $menu = Menu::query()->create([
+            'meal_type' => 'breakfast',
+            'serve_at' => '2026-10-29 07:00:00',
+            'items' => ['Oatmeal'],
+            'recipe_text' => 'Oatmeal',
+            'protein' => 5,
+            'carbs' => 20,
+            'calories' => 120,
+            'status' => 'open',
+        ]);
+
+        Event::fake([MenuUpdated::class]);
+        $this->actingAs($contractor, 'contractor');
+        Auth::shouldUse('contractor');
+
+        Livewire::test(MenuUpdate::class)
+            ->assertSee('wire:click="updateMenu('.$menu->id.', \'2026-10-29\', \'breakfast\')"', false)
+            ->assertSee('wire:target="updateMenu('.$menu->id.', \'2026-10-29\', \'breakfast\')"', false)
+            ->assertDontSee('wire:target="updateMenu"', false)
+            ->set('menus.2026-10-29.breakfast.items', 'Poha, Tea')
+            ->set('menus.2026-10-29.breakfast.protein', '8')
+            ->set('menus.2026-10-29.breakfast.carbs', '35')
+            ->set('menus.2026-10-29.breakfast.calories', '240')
+            ->call('updateMenu', $menu->id, '2026-10-29', 'breakfast')
+            ->assertHasNoErrors()
+            ->assertSet('menus.2026-10-29.breakfast.items', ['Poha', 'Tea'])
+            ->assertSet('statusMessage', 'Meal updated successfully.')
+            ->assertSee('Meal updated successfully.')
+            ->assertDispatched(
+                'portal-toast',
+                fn (string $event, array $params): bool => $params['message'] === 'Menu updated successfully!',
+            );
+
+        $this->assertDatabaseHas('menus', [
+            'id' => $menu->id,
+            'recipe_text' => 'Poha, Tea',
+            'items' => json_encode(['Poha', 'Tea']),
+            'protein' => 8,
+            'carbs' => 35,
+            'calories' => 240,
+        ]);
+        Event::assertDispatched(MenuUpdated::class);
+    }
+
+    public function test_update_rejects_a_menu_id_that_does_not_match_the_selected_date_and_meal(): void
+    {
+        $this->travelTo('2026-10-28 10:00:00');
+
+        $contractor = User::query()->create([
+            'name' => 'Contractor',
+            'college_id' => 'CONTRACTOR009',
+            'email' => 'contractor9@college.edu',
+            'password' => 'password',
+            'role' => 'contractor',
+        ]);
+        $menu = Menu::query()->create([
+            'meal_type' => 'breakfast',
+            'serve_at' => '2026-10-29 07:00:00',
+            'items' => ['Oatmeal'],
+            'recipe_text' => 'Oatmeal',
+            'status' => 'open',
+        ]);
+
+        Event::fake([MenuUpdated::class]);
+        $this->actingAs($contractor, 'contractor');
+        Auth::shouldUse('contractor');
+
+        Livewire::test(MenuUpdate::class)
+            ->set('menus.2026-10-29.breakfast.items', 'Changed')
+            ->call('updateMenu', $menu->id, '2026-10-29', 'lunch')
+            ->assertDispatched(
+                'portal-toast',
+                fn (string $event, array $params): bool => str_contains($params['message'], 'no longer available'),
+            );
+
+        $this->assertDatabaseHas('menus', [
+            'id' => $menu->id,
+            'recipe_text' => 'Oatmeal',
+        ]);
+        Event::assertNotDispatched(MenuUpdated::class);
+    }
+
+    public function test_update_rejects_invalid_nutrition_values_without_changing_the_meal(): void
+    {
+        $this->travelTo('2026-10-28 10:00:00');
+
+        $contractor = User::query()->create([
+            'name' => 'Contractor',
+            'college_id' => 'CONTRACTOR010',
+            'email' => 'contractor10@college.edu',
+            'password' => 'password',
+            'role' => 'contractor',
+        ]);
+        $menu = Menu::query()->create([
+            'meal_type' => 'breakfast',
+            'serve_at' => '2026-10-29 07:00:00',
+            'items' => ['Oatmeal'],
+            'recipe_text' => 'Oatmeal',
+            'protein' => 5,
+            'carbs' => 20,
+            'calories' => 120,
+            'status' => 'open',
+        ]);
+
+        Event::fake([MenuUpdated::class]);
+        $this->actingAs($contractor, 'contractor');
+        Auth::shouldUse('contractor');
+
+        Livewire::test(MenuUpdate::class)
+            ->set('menus.2026-10-29.breakfast.items', 'Changed')
+            ->set('menus.2026-10-29.breakfast.protein', '-1')
+            ->set('menus.2026-10-29.breakfast.carbs', '30')
+            ->set('menus.2026-10-29.breakfast.calories', '200')
+            ->call('updateMenu', $menu->id, '2026-10-29', 'breakfast')
+            ->assertHasErrors('menus.2026-10-29.breakfast.protein');
+
+        $this->assertDatabaseHas('menus', [
+            'id' => $menu->id,
+            'recipe_text' => 'Oatmeal',
+            'protein' => 5,
+        ]);
+        Event::assertNotDispatched(MenuUpdated::class);
     }
 }

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Livewire\ContractorStudents;
 use App\Models\MealBooking;
 use App\Models\Menu;
+use App\Models\StudentFeePayment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -117,6 +118,26 @@ class ContractorStudentsTest extends TestCase
 
         $this->assertModelExists($student->fresh());
         $this->assertModelExists($booking);
+        $this->assertNotNull($student->fresh()->archived_at);
+    }
+
+    public function test_student_with_fee_payment_history_cannot_be_permanently_deleted(): void
+    {
+        $contractor = $this->contractor('CON011');
+        $student = $this->student($contractor);
+        StudentFeePayment::query()->create([
+            'student_id' => $student->id,
+            'recorded_by' => $contractor->id,
+            'amount_paise' => 10000,
+        ]);
+        $this->actingAs($contractor, 'contractor');
+
+        Livewire::test(ContractorStudents::class)
+            ->call('archiveStudent', $student->id)
+            ->call('permanentlyDeleteStudent', $student->id)
+            ->assertHasErrors('deletion');
+
+        $this->assertModelExists($student->fresh());
         $this->assertNotNull($student->fresh()->archived_at);
     }
 

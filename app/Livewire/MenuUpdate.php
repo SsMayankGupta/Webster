@@ -6,6 +6,7 @@ use App\Events\MenuUpdated;
 use App\Models\Menu;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
@@ -17,6 +18,8 @@ use Livewire\Component;
 class MenuUpdate extends Component
 {
     public array $menus = [];
+
+    public ?string $statusMessage = null;
 
     #[Locked]
     public int $previousWeeksLoaded = 0;
@@ -95,7 +98,7 @@ class MenuUpdate extends Component
         $this->loadMenus();
     }
 
-    public function updateMenu(int $menuId, array $data): void
+    public function updateMenu(int $menuId, string $date, string $mealType): void
     {
         $contractor = Auth::user();
 
@@ -105,10 +108,61 @@ class MenuUpdate extends Component
             return;
         }
 
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)
+            || ! in_array($mealType, ['breakfast', 'lunch', 'snacks', 'dinner'], true)) {
+            $this->dispatch('portal-toast', message: 'Invalid meal selection.', type: 'error');
+
+            return;
+        }
+
+        $entry = $this->menus[$date][$mealType] ?? null;
+        if (! is_array($entry) || (int) ($entry['id'] ?? 0) !== $menuId) {
+            $this->dispatch('portal-toast', message: 'This meal is no longer available to update. Reload the page and try again.', type: 'error');
+
+            return;
+        }
+
+        $path = "menus.{$date}.{$mealType}";
+        $validated = $this->validate([
+            "{$path}.items" => ['required'],
+            "{$path}.protein" => ['required', 'numeric', 'min:0'],
+            "{$path}.carbs" => ['required', 'numeric', 'min:0'],
+            "{$path}.calories" => ['required', 'numeric', 'min:0'],
+        ]);
+        $data = data_get($validated, $path);
+        $menuItems = $data['items'];
+
+        if (is_string($menuItems)) {
+            $menuItems = explode(',', $menuItems);
+        }
+
+        if (! is_array($menuItems)) {
+            throw ValidationException::withMessages([
+                "{$path}.items" => 'Enter menu items separated by commas.',
+            ]);
+        }
+
+        $menuItems = array_values(array_filter(
+            array_map(fn (mixed $item): string => trim((string) $item), $menuItems),
+            fn (string $item): bool => $item !== '',
+        ));
+
+        if ($menuItems === []) {
+            throw ValidationException::withMessages([
+                "{$path}.items" => 'Enter at least one menu item.',
+            ]);
+        }
+
         $menu = Menu::query()->findOrFail($menuId);
+        if ($menu->serve_at->toDateString() !== $date || $menu->meal_type !== $mealType) {
+            $this->dispatch('portal-toast', message: 'This meal is no longer available to update. Reload the page and try again.', type: 'error');
+
+            return;
+        }
+
         $menu->update([
-            'recipe_text' => implode(', ', $data['items']),
-            'items' => $data['items'],
+            'recipe_text' => implode(', ', $menuItems),
+            'items' => $menuItems,
             'protein' => $data['protein'],
             'carbs' => $data['carbs'],
             'calories' => $data['calories'],
@@ -116,6 +170,7 @@ class MenuUpdate extends Component
 
         broadcast(new MenuUpdated($menu));
         $this->loadMenus();
+        $this->statusMessage = 'Meal updated successfully.';
 
         $this->dispatch('portal-toast', message: 'Menu updated successfully!', type: 'success');
     }

@@ -7,9 +7,9 @@
         </header>
 
         <section aria-labelledby="menu-effective-dates" class="border-l-2 border-emerald-700 bg-emerald-50/70 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-400 dark:bg-emerald-950/30 dark:text-emerald-200">
-            <h3 id="menu-effective-dates" class="font-medium">New mess menu applies next week</h3>
+            <h3 id="menu-effective-dates" class="font-medium">Plan the next seven days</h3>
             <p class="mt-1">
-                Any menu created here—AI-generated, cloned, or entered manually—will be scheduled from
+                Menus entered here—AI-generated, cloned, or manual—are scheduled from today through six days from today:
                 <strong>{{ $menuWeekStart->format('l, F j') }}</strong>
                 through
                 <strong>{{ $menuWeekEnd->format('l, F j') }}</strong>.
@@ -20,16 +20,20 @@
             <div role="status" class="border-l-2 border-emerald-700 bg-emerald-50/70 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-400 dark:bg-emerald-950/30 dark:text-emerald-200">
                 <p class="font-medium">Menu created successfully.</p>
                 <p class="mt-1">The saved menu is scheduled for {{ implode(', ', $scheduledMenuDates) }}.</p>
+                @if ($skippedMenuSlots > 0)
+                    <p class="mt-1">{{ $skippedMenuSlots }} meal slot(s) already had menus and were left unchanged.</p>
+                @endif
                 <a href="{{ route('contractor.menu-update') }}" class="mt-2 inline-block font-medium underline underline-offset-2">
-                    Open Menu Update and choose Next Week to edit
+                    Open Menu Update to edit existing meals
                 </a>
             </div>
         @elseif ($scheduledMenuDates !== [])
             <div role="status" class="border-l-2 border-amber-600 bg-amber-50/70 px-4 py-3 text-sm text-amber-900 dark:border-amber-400 dark:bg-amber-950/30 dark:text-amber-200">
-                <p class="font-medium">Menus are already scheduled for next week.</p>
-                <p class="mt-1">The database shows menu dates: {{ implode(', ', $scheduledMenuDates) }}.</p>
+                <p class="font-medium">Some meals are already scheduled in this seven-day period.</p>
+                <p class="mt-1">You can still fill other dates or meal types. Existing day and meal slots will be left unchanged.</p>
+                <p class="mt-1">Menu dates already in use: {{ implode(', ', $scheduledMenuDates) }}.</p>
                 <a href="{{ route('contractor.menu-update') }}" class="mt-2 inline-block font-medium underline underline-offset-2">
-                    Open Menu Update and choose Next Week to edit
+                    Open Menu Update to edit existing meals
                 </a>
             </div>
         @endif
@@ -221,7 +225,10 @@
                         <tbody>
                             @foreach($days as $day)
                                 <tr wire:key="menu-builder-day-{{ $day }}" class="border-b border-slate-200 dark:border-slate-800">
-                                    <th scope="row" class="px-3 py-4 text-left align-top text-sm font-medium text-slate-800 dark:text-slate-200">{{ $day }}</th>
+                                    <th scope="row" class="px-3 py-4 text-left align-top text-sm font-medium text-slate-800 dark:text-slate-200">
+                                        {{ $day }}
+                                        <span class="mt-1 block whitespace-nowrap text-xs font-normal text-slate-500 dark:text-slate-400">{{ $menuWeekStart->copy()->addDays($loop->index)->format('M j') }}</span>
+                                    </th>
                                     @foreach($mealTypes as $mealType)
                                         <td class="px-3 py-2">
                                             <input
@@ -292,7 +299,10 @@
                 <div class="space-y-4">
                     @foreach($days as $day)
                         <div wire:key="menu-preview-day-{{ $day }}" class="border-t border-slate-200 pt-4 dark:border-slate-800">
-                            <h4 class="mb-3 text-base font-medium text-slate-900 dark:text-white">{{ $day }}</h4>
+                            <h4 class="mb-3 text-base font-medium text-slate-900 dark:text-white">
+                                {{ $day }}
+                                <span class="font-normal text-slate-500 dark:text-slate-400">· {{ $menuWeekStart->copy()->addDays($loop->index)->format('M j') }}</span>
+                            </h4>
                             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                                 @foreach($mealTypes as $mealType)
                                     <div wire:key="menu-preview-{{ $day }}-{{ $mealType }}" class="border-l-2 border-emerald-700 pl-3 dark:border-emerald-500">

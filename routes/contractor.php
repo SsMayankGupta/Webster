@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\ContractorAuthController;
 use App\Http\Controllers\Contractor\ScanController;
 use App\Livewire\ContractorDashboard;
+use App\Livewire\ContractorGuestQueue;
 use App\Livewire\ContractorHeadcount;
 use App\Livewire\ContractorLeave;
 use App\Livewire\ContractorLogin;
@@ -25,6 +26,7 @@ Route::prefix('contractor')->name('contractor.')->group(function () {
 
     Route::middleware(['auth:contractor', 'portal.account.active', 'password.change.completed'])->group(function () {
         Route::get('/dashboard', ContractorDashboard::class)->name('dashboard');
+        Route::get('/guest-meals', ContractorGuestQueue::class)->name('guest-meals');
         Route::get('/menu-builder', ContractorMenuBuilder::class)->name('menu-builder');
         Route::get('/menu-update', MenuUpdate::class)->name('menu-update');
         Route::get('/meal-timing', MealTimingManager::class)->name('meal-timing');

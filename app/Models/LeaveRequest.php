@@ -29,4 +29,9 @@ class LeaveRequest extends Model
     {
         return $this->hasMany(RebateLedger::class, 'leave_request_id');
     }
+
+    public function mealRefunds(): HasMany
+    {
+        return $this->hasMany(MealRefund::class);
+    }
 }

@@ -28,6 +28,10 @@
             </div>
         </header>
 
+        @if ($statusMessage)
+            <p role="status" class="border-l-2 border-emerald-700 bg-emerald-50/70 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-400 dark:bg-emerald-950/30 dark:text-emerald-200">{{ $statusMessage }}</p>
+        @endif
+
         <div class="space-y-8">
             @php($displayedWeek = null)
             @forelse ($menus as $date => $dayMenus)
@@ -75,6 +79,9 @@
                                                 wire:model="menus.{{ $date }}.{{ $mealType }}.items"
                                                 class="input"
                                             >
+                                            @error("menus.$date.$mealType.items")
+                                                <p role="alert" class="text-xs text-rose-700 dark:text-rose-300">{{ $message }}</p>
+                                            @enderror
                                         </div>
 
                                         <div class="grid grid-cols-3 gap-2">
@@ -83,35 +90,51 @@
                                                 <input
                                                     id="menu-{{ $date }}-{{ $mealType }}-protein"
                                                     type="number"
+                                                    min="0"
                                                     wire:model="menus.{{ $date }}.{{ $mealType }}.protein"
                                                     class="input px-2"
                                                 >
+                                                @error("menus.$date.$mealType.protein")
+                                                    <p role="alert" class="text-xs text-rose-700 dark:text-rose-300">{{ $message }}</p>
+                                                @enderror
                                             </div>
                                             <div class="space-y-2">
                                                 <label for="menu-{{ $date }}-{{ $mealType }}-carbs" class="block text-xs font-medium text-slate-600 dark:text-slate-400">Carbs (g)</label>
                                                 <input
                                                     id="menu-{{ $date }}-{{ $mealType }}-carbs"
                                                     type="number"
+                                                    min="0"
                                                     wire:model="menus.{{ $date }}.{{ $mealType }}.carbs"
                                                     class="input px-2"
                                                 >
+                                                @error("menus.$date.$mealType.carbs")
+                                                    <p role="alert" class="text-xs text-rose-700 dark:text-rose-300">{{ $message }}</p>
+                                                @enderror
                                             </div>
                                             <div class="space-y-2">
                                                 <label for="menu-{{ $date }}-{{ $mealType }}-calories" class="block text-xs font-medium text-slate-600 dark:text-slate-400">Calories</label>
                                                 <input
                                                     id="menu-{{ $date }}-{{ $mealType }}-calories"
                                                     type="number"
+                                                    min="0"
                                                     wire:model="menus.{{ $date }}.{{ $mealType }}.calories"
                                                     class="input px-2"
                                                 >
+                                                @error("menus.$date.$mealType.calories")
+                                                    <p role="alert" class="text-xs text-rose-700 dark:text-rose-300">{{ $message }}</p>
+                                                @enderror
                                             </div>
                                         </div>
 
                                         <button
-                                            wire:click="updateMenu({{ $dayMenus[$mealType]['id'] }}, menus.{{ $date }}.{{ $mealType }})"
-                                            class="w-full rounded-lg bg-emerald-700 px-3 py-2 text-sm font-medium text-white transition hover:bg-emerald-800"
+                                            type="button"
+                                            wire:click="updateMenu({{ $dayMenus[$mealType]['id'] }}, '{{ $date }}', '{{ $mealType }}')"
+                                            wire:loading.attr="disabled"
+                                            wire:target="updateMenu({{ $dayMenus[$mealType]['id'] }}, '{{ $date }}', '{{ $mealType }}')"
+                                            class="w-full rounded-lg bg-emerald-700 px-3 py-2 text-sm font-medium text-white transition hover:bg-emerald-800 disabled:cursor-wait disabled:opacity-60"
                                         >
-                                            Update meal
+                                            <span wire:loading.remove wire:target="updateMenu({{ $dayMenus[$mealType]['id'] }}, '{{ $date }}', '{{ $mealType }}')">Update meal</span>
+                                            <span wire:loading wire:target="updateMenu({{ $dayMenus[$mealType]['id'] }}, '{{ $date }}', '{{ $mealType }}')">Updating meal…</span>
                                         </button>
                                     </div>
                                 @else

@@ -56,7 +56,10 @@ class Menu extends Model
     public function cutoffAt(): CarbonImmutable
     {
         return CarbonImmutable::instance($this->serve_at)
-            ->subHours((int) config('mess.cutoff_hours'));
+            ->subHours((int) (
+                $this->mealTimeSlot?->cutoff_hours_before
+                    ?? config("mess.default_meal_times.{$this->meal_type}.cutoff_hours_before", config('mess.cutoff_hours'))
+            ));
     }
 
     public function isOpenAt(?CarbonImmutable $moment = null): bool

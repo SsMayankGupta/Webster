@@ -19,8 +19,16 @@ class MealLifecycleService
     {
         $now ??= CarbonImmutable::now();
         $serveAt = CarbonImmutable::instance($menu->serve_at);
+        $endTime = $menu->mealTimeSlot?->end_time
+            ?? config("mess.default_meal_times.{$menu->meal_type}.end_time");
+        $endAt = $endTime === null
+            ? $serveAt->addHours(3)
+            : $serveAt
+                ->timezone(config('mess.display_timezone'))
+                ->setTimeFromTimeString($endTime)
+                ->utc();
 
-        if ($menu->status === 'closed' || $now->gte($serveAt->addHours(3))) {
+        if ($menu->status === 'closed' || $now->gte($endAt)) {
             return 'closed';
         }
 

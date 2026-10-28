@@ -58,6 +58,7 @@
                     $newItems = [
                         ['contractor.menu-update','Update Menu','M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15'],
                         ['contractor.meal-timing','Meal Timing','M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'],
+                        ['contractor.guest-meals','Guest Meals','M16 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2m16 0v-2a4 4 0 00-3-3.87M14 3.13a4 4 0 010 7.75M14 7a4 4 0 11-8 0 4 4 0 018 0z'],
                     ];
                 @endphp
                 @foreach ($newItems as [$route,$label,$icon])

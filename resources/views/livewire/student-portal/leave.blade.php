@@ -31,6 +31,100 @@
                             <p class="mt-1 text-xs font-medium text-rose-600 dark:text-rose-400">{{ $message }}</p>
                         @enderror
                     </div>
+
+                    <section aria-labelledby="student-wallet-heading" class="card overflow-hidden xl:col-span-2">
+                        <div class="border-b border-slate-100 px-5 py-4 dark:border-slate-800">
+                            <h2 id="student-wallet-heading" class="font-lora text-xl font-semibold tracking-tight">My wallet</h2>
+                            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Totals for {{ $state['wallet']['period_label'] }}. Transaction history is retained when the semester dates change.</p>
+                        </div>
+
+                        <div class="grid gap-3 p-5 sm:grid-cols-2 xl:grid-cols-4">
+                            @foreach ([
+                                ['label' => 'Fees submitted', 'amount' => $state['wallet']['fee_paid_paise'], 'class' => 'border-slate-200 bg-slate-50 text-slate-900 dark:border-slate-800 dark:bg-slate-900/60 dark:text-white'],
+                                ['label' => 'Meal refunds', 'amount' => $state['wallet']['meal_refund_paise'], 'class' => 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300'],
+                                ['label' => 'Transferred', 'amount' => $state['wallet']['transferred_refund_paise'], 'class' => 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300'],
+                                ['label' => 'Awaiting transfer', 'amount' => $state['wallet']['pending_refund_paise'], 'class' => 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300'],
+                                ['label' => 'Approved-leave rebates', 'amount' => $state['wallet']['approved_leave_rebate_paise'], 'class' => 'border-brand-200 bg-brand-50 text-brand-800 dark:border-brand-500/40 dark:bg-brand-500/10 dark:text-brand-200'],
+                                ['label' => 'Guest meals charged', 'amount' => $state['wallet']['extra_meal_charged_paise'], 'class' => 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300'],
+                                ['label' => 'Guest meals collected', 'amount' => $state['wallet']['extra_meal_collected_paise'], 'class' => 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300'],
+                                ['label' => 'Guest meals outstanding', 'amount' => $state['wallet']['extra_meal_outstanding_paise'], 'class' => 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300'],
+                            ] as $walletTotal)
+                                <div class="rounded-xl border p-4 {{ $walletTotal['class'] }}">
+                                    <p class="text-[11px] font-semibold uppercase tracking-wider opacity-75">{{ $walletTotal['label'] }}</p>
+                                    <p class="mt-1 font-lora text-xl font-semibold">₹{{ number_format($walletTotal['amount'] / 100, 2) }}</p>
+                                </div>
+                            @endforeach
+                        </div>
+
+                        <div class="grid gap-5 border-t border-slate-100 p-5 lg:grid-cols-2 dark:border-slate-800">
+                            <section aria-labelledby="fee-payment-history-heading">
+                                <h3 id="fee-payment-history-heading" class="text-sm font-semibold">Fee payments submitted</h3>
+                                <div class="mt-2 divide-y divide-slate-100 dark:divide-slate-800">
+                                    @forelse ($state['wallet']['fee_payments'] as $payment)
+                                        <div wire:key="wallet-fee-{{ $payment['id'] }}" class="flex items-center justify-between gap-3 py-2.5 text-sm">
+                                            <span class="text-slate-500 dark:text-slate-400">{{ $payment['date'] }}</span>
+                                            <span class="font-semibold tabular-nums">₹{{ number_format($payment['amount_paise'] / 100, 2) }}</span>
+                                        </div>
+                                    @empty
+                                        <p class="py-4 text-sm text-slate-500 dark:text-slate-400">No fee payments have been recorded yet.</p>
+                                    @endforelse
+                                </div>
+                            </section>
+
+                            <section aria-labelledby="meal-refund-history-heading">
+                                <h3 id="meal-refund-history-heading" class="text-sm font-semibold">Meal refund history</h3>
+                                <div class="mt-2 divide-y divide-slate-100 dark:divide-slate-800">
+                                    @forelse ($state['wallet']['refunds'] as $refund)
+                                        <div wire:key="wallet-refund-{{ $refund['id'] }}" class="flex items-center justify-between gap-3 py-2.5 text-sm">
+                                            <div>
+                                                <p class="font-medium">₹{{ number_format($refund['amount_paise'] / 100, 2) }} · {{ ucfirst($refund['status']) }}</p>
+                                                <p class="text-xs text-slate-500 dark:text-slate-400">
+                                                    Approved leave {{ $refund['leave_from'] }} – {{ $refund['leave_to'] }}
+                                                    · recorded {{ $refund['date'] }}
+                                                    @if ($refund['transferred_at'])
+                                                        · transferred {{ $refund['transferred_at'] }}
+                                                    @endif
+                                                </p>
+                                            </div>
+                                        </div>
+                                    @empty
+                                        <p class="py-4 text-sm text-slate-500 dark:text-slate-400">No meal refunds have been recorded yet.</p>
+                                    @endforelse
+                                </div>
+                            </section>
+
+                            <section aria-labelledby="guest-meal-history-heading" class="lg:col-span-2">
+                                <h3 id="guest-meal-history-heading" class="text-sm font-semibold">Guest-meal charges and collections</h3>
+                                <div class="mt-2 grid gap-5 lg:grid-cols-2">
+                                    <div class="divide-y divide-slate-100 dark:divide-slate-800">
+                                        <h4 class="pb-2 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Charges</h4>
+                                        @forelse ($state['wallet']['extra_meal_charges'] as $charge)
+                                            <div wire:key="wallet-guest-charge-{{ $charge['id'] }}" class="flex items-center justify-between gap-3 py-2.5 text-sm">
+                                                <div>
+                                                    <p class="font-medium">{{ ucfirst($charge['meal_type'] ?? 'Guest meal') }} · {{ $charge['guest_count'] }} relative(s)</p>
+                                                    <p class="text-xs text-slate-500 dark:text-slate-400">{{ $charge['date'] }} · ₹{{ number_format($charge['price_per_guest_paise'] / 100, 2) }} each</p>
+                                                </div>
+                                                <span class="font-semibold tabular-nums">₹{{ number_format($charge['amount_paise'] / 100, 2) }}</span>
+                                            </div>
+                                        @empty
+                                            <p class="py-4 text-sm text-slate-500 dark:text-slate-400">No guest-meal charges recorded.</p>
+                                        @endforelse
+                                    </div>
+                                    <div class="divide-y divide-slate-100 dark:divide-slate-800">
+                                        <h4 class="pb-2 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Collections</h4>
+                                        @forelse ($state['wallet']['extra_meal_collections'] as $collection)
+                                            <div wire:key="wallet-guest-collection-{{ $collection['id'] }}" class="flex items-center justify-between gap-3 py-2.5 text-sm">
+                                                <span class="text-slate-500 dark:text-slate-400">{{ $collection['date'] }}</span>
+                                                <span class="font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">₹{{ number_format($collection['amount_paise'] / 100, 2) }}</span>
+                                            </div>
+                                        @empty
+                                            <p class="py-4 text-sm text-slate-500 dark:text-slate-400">No guest-meal collections recorded.</p>
+                                        @endforelse
+                                    </div>
+                                </div>
+                            </section>
+                        </div>
+                    </section>
                 </div>
 
                 <div>

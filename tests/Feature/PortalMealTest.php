@@ -6,10 +6,12 @@ use App\Livewire\StudentPortal;
 use App\Models\LeaveRequest;
 use App\Models\MealBooking;
 use App\Models\MealConsumption;
+use App\Models\MealTimeSlot;
 use App\Models\Menu;
 use App\Models\User;
 use App\Services\MealBookingService;
 use App\Services\MealLifecycleService;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Livewire\Livewire;
@@ -44,6 +46,96 @@ class PortalMealTest extends TestCase
             'menu_id' => $menu->id,
             'status' => 'booked',
         ]);
+    }
+
+    public function test_student_meal_week_contains_today_through_six_days_ahead_only(): void
+    {
+        $this->travelTo('2026-10-28 08:00:00');
+
+        $student = $this->student();
+        $seventhDayMenu = $this->menu(now()->startOfDay()->addDays(6)->addHours(12));
+        $outsideWeekMenu = $this->menu(now()->startOfDay()->addDays(7)->addHours(12));
+        $this->actingAs($student, 'student');
+
+        $days = Livewire::test(StudentPortal::class)->get('state')['days'];
+
+        $this->assertCount(7, $days);
+        $this->assertSame('2026-10-28', $days[0]['date']);
+        $this->assertSame('2026-11-03', $days[6]['date']);
+        $this->assertSame(
+            $seventhDayMenu->id,
+            collect($days[6]['meals'])->firstWhere('id', $seventhDayMenu->id)['id'],
+        );
+        $this->assertNull(
+            collect($days)->flatMap(fn (array $day): array => $day['meals'])->firstWhere('id', $outsideWeekMenu->id),
+        );
+    }
+
+    public function test_student_sees_contractor_configured_service_hours_and_cutoff(): void
+    {
+        $this->travelTo('2026-10-28 01:00:00');
+
+        $student = $this->student();
+        $slot = MealTimeSlot::query()->create([
+            'meal_type' => 'BREAKFAST',
+            'start_time' => '07:30:00',
+            'end_time' => '09:00:00',
+            'cutoff_hours_before' => 2,
+        ]);
+        $menu = Menu::query()->create([
+            'meal_type' => 'breakfast',
+            'serve_at' => '2026-10-28 02:00:00',
+            'meal_time_slot_id' => $slot->id,
+            'items' => ['Oatmeal'],
+            'status' => 'open',
+        ]);
+        $this->actingAs($student, 'student');
+
+        $component = Livewire::test(StudentPortal::class);
+        $meal = collect($component->get('state')['today']['meals'])->firstWhere('id', $menu->id);
+
+        $this->assertSame('Wed, 28 Oct · 7:30 AM – 9:00 AM', $meal['serve_at_label']);
+        $this->assertSame('Wed, 28 Oct 5:30 AM', $meal['cutoff_label']);
+        $this->assertSame(2, $meal['cutoff_hours']);
+        $this->assertSame('locked', $meal['status']);
+        $component->assertSee('Wed, 28 Oct · 7:30 AM – 9:00 AM');
+
+        $lifecycle = app(MealLifecycleService::class);
+        $this->assertSame(
+            'serving',
+            $lifecycle->stateFor($menu, CarbonImmutable::parse('2026-10-28 02:30:00', 'UTC')),
+        );
+        $this->assertSame(
+            'closed',
+            $lifecycle->stateFor($menu, CarbonImmutable::parse('2026-10-28 03:31:00', 'UTC')),
+        );
+    }
+
+    public function test_student_meals_are_grouped_by_the_configured_local_calendar_date(): void
+    {
+        $this->travelTo('2026-10-28 01:00:00');
+
+        $student = $this->student();
+        $slot = MealTimeSlot::query()->create([
+            'meal_type' => 'BREAKFAST',
+            'start_time' => '00:30:00',
+            'end_time' => '02:00:00',
+            'cutoff_hours_before' => 1,
+        ]);
+        $menu = Menu::query()->create([
+            'meal_type' => 'breakfast',
+            'serve_at' => '2026-10-27 19:00:00',
+            'meal_time_slot_id' => $slot->id,
+            'items' => ['Oatmeal'],
+            'status' => 'open',
+        ]);
+        $this->actingAs($student, 'student');
+
+        $state = Livewire::test(StudentPortal::class)->get('state');
+        $meal = collect($state['today']['meals'])->firstWhere('id', $menu->id);
+
+        $this->assertSame('2026-10-28', $state['today']['date']);
+        $this->assertSame('Wed, 28 Oct · 12:30 AM – 2:00 AM', $meal['serve_at_label']);
     }
 
     public function test_opt_in_and_out_controls_are_only_shown_for_today(): void

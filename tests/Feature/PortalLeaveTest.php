@@ -5,8 +5,10 @@ namespace Tests\Feature;
 use App\Livewire\StudentPortal;
 use App\Models\LeaveRequest;
 use App\Models\MealBooking;
+use App\Models\MealRefund;
 use App\Models\Menu;
 use App\Models\RebateLedger;
+use App\Models\StudentFeePayment;
 use App\Models\User;
 use App\Services\BillingService;
 use App\Services\RebateService;
@@ -146,9 +148,111 @@ class PortalLeaveTest extends TestCase
         $this->assertSame(10000, $state['billing']['rebate_paise']);
         $this->assertSame('approved', $state['leaves'][0]['status']);
         $this->assertSame(10000, $state['leaves'][0]['rebate_paise']);
+        $this->assertSame(10000, $state['wallet']['approved_leave_rebate_paise']);
 
         $component->call('setTab', 'leave')
             ->assertSee('₹100.00 rebate credited');
+    }
+
+    public function test_student_wallet_shows_recorded_fees_refunds_and_transfer_status(): void
+    {
+        $student = $this->student();
+        $leave = $this->leave($student, now()->subDays(3), now()->subDays(2));
+        $leave->update(['status' => 'approved']);
+        StudentFeePayment::query()->create([
+            'student_id' => $student->id,
+            'amount_paise' => 125050,
+        ]);
+        MealRefund::query()->create([
+            'student_id' => $student->id,
+            'leave_request_id' => $leave->id,
+            'amount_paise' => 7525,
+            'status' => 'pending',
+        ]);
+        $this->actingAs($student, 'student');
+
+        $component = Livewire::test(StudentPortal::class)
+            ->call('setTab', 'leave');
+        $state = $component->get('state');
+
+        $this->assertSame(125050, $state['wallet']['fee_paid_paise']);
+        $this->assertSame(7525, $state['wallet']['meal_refund_paise']);
+        $this->assertSame(7525, $state['wallet']['pending_refund_paise']);
+        $this->assertSame('pending', $state['wallet']['refunds'][0]['status']);
+        $component->assertSee('My wallet')
+            ->assertSee('Fees submitted')
+            ->assertSee('Meal refunds')
+            ->assertSee('Awaiting transfer');
+    }
+
+    public function test_student_wallet_totals_follow_semester_dates_and_keep_older_history(): void
+    {
+        $contractor = $this->contractor();
+        $student = $this->student();
+        $student->forceFill(['contractor_id' => $contractor->id])->save();
+        $contractor->forceFill([
+            'semester_name' => 'Semester 2',
+            'semester_starts_at' => today()->subDays(10),
+            'semester_ends_at' => today()->addDays(10),
+        ])->save();
+        $oldLeave = $this->leave($student, today()->subDays(45), today()->subDays(44));
+        $oldLeave->update(['status' => 'approved']);
+        $currentLeave = $this->leave($student, today()->subDays(3), today()->subDays(2));
+        $currentLeave->update(['status' => 'approved']);
+
+        $oldPayment = StudentFeePayment::query()->create([
+            'student_id' => $student->id,
+            'amount_paise' => 1000,
+        ]);
+        $oldPayment->forceFill(['created_at' => today()->subDays(40)])->save();
+        StudentFeePayment::query()->create([
+            'student_id' => $student->id,
+            'amount_paise' => 8000,
+        ]);
+
+        RebateLedger::query()->create([
+            'student_id' => $student->id,
+            'leave_request_id' => $oldLeave->id,
+            'amount' => 20,
+            'amount_paise' => 2000,
+            'reason' => 'Older leave rebate',
+            'created_at' => today()->subDays(40),
+        ]);
+        RebateLedger::query()->create([
+            'student_id' => $student->id,
+            'leave_request_id' => $currentLeave->id,
+            'amount' => 25,
+            'amount_paise' => 2500,
+            'reason' => 'Current leave rebate',
+            'created_at' => now(),
+        ]);
+        $oldRefund = MealRefund::query()->create([
+            'student_id' => $student->id,
+            'leave_request_id' => $oldLeave->id,
+            'amount_paise' => 500,
+            'status' => 'transferred',
+        ]);
+        $oldRefund->forceFill(['created_at' => today()->subDays(40)])->save();
+        MealRefund::query()->create([
+            'student_id' => $student->id,
+            'leave_request_id' => $currentLeave->id,
+            'amount_paise' => 600,
+            'status' => 'transferred',
+        ]);
+        $this->actingAs($student, 'student');
+
+        $state = Livewire::test(StudentPortal::class)->get('state');
+
+        $this->assertSame(
+            'Semester 2 · '.today()->subDays(10)->format('d M Y').' – '.today()->addDays(10)->format('d M Y'),
+            $state['wallet']['period_label'],
+        );
+        $this->assertSame(8000, $state['wallet']['fee_paid_paise']);
+        $this->assertSame(600, $state['wallet']['meal_refund_paise']);
+        $this->assertSame(600, $state['wallet']['transferred_refund_paise']);
+        $this->assertSame(2500, $state['wallet']['approved_leave_rebate_paise']);
+        $this->assertCount(2, $state['wallet']['fee_payments']);
+        $this->assertCount(2, $state['wallet']['refunds']);
     }
 
     private function student(): User
