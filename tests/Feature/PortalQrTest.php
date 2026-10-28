@@ -2,16 +2,21 @@
 
 namespace Tests\Feature;
 
+use App\Events\FeedbackResponded;
+use App\Events\GuestPassApproved;
+use App\Events\GuestPassRequested;
 use App\Events\QrRedeemed;
 use App\Exceptions\RedemptionRejectedException;
 use App\Livewire\StudentPortal;
 use App\Models\LeaveRequest;
 use App\Models\MealBooking;
+use App\Models\MealFeedback;
 use App\Models\Menu;
 use App\Models\User;
 use App\Services\QrTokenService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
@@ -82,7 +87,11 @@ class PortalQrTest extends TestCase
             'broadcasting.connections.pusher.app_id' => 'app-id',
         ]);
         Broadcast::purge('pusher');
-        Broadcast::channel('App.Models.User.{id}', fn ($user, $id): bool => (int) $user->id === (int) $id);
+        Broadcast::channel(
+            'App.Models.User.{id}',
+            fn ($user, $id): bool => $user->isStudent() && (int) $user->id === (int) $id,
+            ['guards' => ['student']],
+        );
 
         $this->actingAs($student, 'student')
             ->postJson('/broadcasting/auth', [
@@ -98,6 +107,84 @@ class PortalQrTest extends TestCase
                 'channel_name' => 'private-App.Models.User.999999',
             ])
             ->assertForbidden();
+    }
+
+    public function test_broadcast_channels_are_limited_to_their_student_or_contractor_audience(): void
+    {
+        $student = User::create([
+            'name' => 'Asha Rao',
+            'college_id' => 'STU-BROADCAST',
+            'email' => 'broadcast-student@college.edu',
+            'password' => Hash::make('password'),
+            'role' => 'student',
+        ]);
+        $contractor = $this->contractor();
+        config([
+            'broadcasting.default' => 'pusher',
+            'broadcasting.connections.pusher.driver' => 'pusher',
+            'broadcasting.connections.pusher.key' => 'public-app-key',
+            'broadcasting.connections.pusher.secret' => 'private-app-secret',
+            'broadcasting.connections.pusher.app_id' => 'app-id',
+        ]);
+        Broadcast::purge('pusher');
+        Broadcast::channel(
+            'App.Models.User.{id}',
+            fn ($user, $id): bool => $user->isStudent() && (int) $user->id === (int) $id,
+            ['guards' => ['student']],
+        );
+        Broadcast::channel('guest-queue', fn ($user): bool => $user->role === 'contractor', ['guards' => ['contractor']]);
+
+        $this->actingAs($student, 'student')
+            ->postJson('/broadcasting/auth', [
+                'socket_id' => '123.456',
+                'channel_name' => 'private-App.Models.User.'.$student->id,
+            ])
+            ->assertOk();
+
+        $this->actingAs($student, 'student')
+            ->postJson('/broadcasting/auth', [
+                'socket_id' => '123.456',
+                'channel_name' => 'private-guest-queue',
+            ])
+            ->assertForbidden();
+
+        Auth::guard('student')->logout();
+        Auth::guard('contractor')->logout();
+
+        $this->actingAs($contractor, 'contractor')
+            ->postJson('/broadcasting/auth', [
+                'socket_id' => '123.456',
+                'channel_name' => 'private-guest-queue',
+            ])
+            ->assertOk();
+
+        $this->actingAs($contractor, 'contractor')
+            ->postJson('/broadcasting/auth', [
+                'socket_id' => '123.456',
+                'channel_name' => 'private-App.Models.User.'.$student->id,
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_guest_pass_and_feedback_events_use_private_channels(): void
+    {
+        $booking = new MealBooking;
+        $booking->student_id = 42;
+        $feedback = new MealFeedback;
+        $feedback->student_id = 42;
+
+        $this->assertSame(
+            ['private-guest-queue', 'private-App.Models.User.42'],
+            array_map('strval', (new GuestPassApproved($booking, '1'))->broadcastOn()),
+        );
+        $this->assertSame(
+            ['private-guest-queue'],
+            array_map('strval', (new GuestPassRequested($booking))->broadcastOn()),
+        );
+        $this->assertSame(
+            ['private-App.Models.User.42'],
+            array_map('strval', (new FeedbackResponded($feedback))->broadcastOn()),
+        );
     }
 
     public function test_guest_cannot_authorize_a_student_private_broadcast_channel(): void

@@ -3,8 +3,8 @@
 namespace App\Events;
 
 use App\Models\MealBooking;
-use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
+use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
@@ -21,8 +21,8 @@ class GuestPassApproved implements ShouldBroadcast
     public function broadcastOn(): array
     {
         return [
-            new Channel('guest-queue'),
-            new Channel('student.'.$this->booking->student_id),
+            new PrivateChannel('guest-queue'),
+            new PrivateChannel('App.Models.User.'.$this->booking->student_id),
         ];
     }
 

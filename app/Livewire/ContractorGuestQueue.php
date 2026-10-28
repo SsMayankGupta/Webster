@@ -30,7 +30,7 @@ class ContractorGuestQueue extends Component
         $this->loadPendingRequests();
     }
 
-    #[On('echo:guest-queue,GuestPassRequested')]
+    #[On('echo-private:guest-queue,GuestPassRequested')]
     public function onGuestPassRequested(): void
     {
         $this->loadPendingRequests();

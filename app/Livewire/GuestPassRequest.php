@@ -164,7 +164,7 @@ class GuestPassRequest extends Component
         }
     }
 
-    #[On('echo:guest-queue,GuestPassApproved')]
+    #[On('guest-pass-approved')]
     public function onGuestPassApproved(array $event): void
     {
         if ((int) ($event['student_id'] ?? 0) !== $this->student()->id) {

@@ -53,7 +53,9 @@
     </div>
 </div>
 
-<script src="https://unpkg.com/html5-qrcode" defer></script>
+@push('scripts')
+    @vite('resources/js/scanner.js')
+@endpush
 <script>
     const scannerConfig = @js([
         'redeemUrl' => route('api.scans.redeem'),
