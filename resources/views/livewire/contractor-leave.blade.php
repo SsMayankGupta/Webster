@@ -57,14 +57,26 @@
                                         <dt class="text-slate-500 dark:text-slate-400">To</dt>
                                         <dd class="text-slate-800 dark:text-slate-200">{{ $leave['to_date'] }}</dd>
                                     </div>
+                                    @if ($leave['ended_early'])
+                                        <div class="flex gap-2">
+                                            <dt class="text-slate-500 dark:text-slate-400">Originally approved through</dt>
+                                            <dd class="text-slate-800 dark:text-slate-200">{{ $leave['requested_to_label'] }}</dd>
+                                        </div>
+                                    @endif
                                     <div class="flex gap-2">
                                         <dt class="text-slate-500 dark:text-slate-400">Duration</dt>
                                         <dd class="text-slate-800 dark:text-slate-200">{{ $leave['days'] }} day(s)</dd>
                                     </div>
-                                    @if ($leave['rebate_amount'] > 0)
+                                    @if ($leave['rebate_amount_paise'] !== 0)
                                         <div class="flex gap-2">
-                                            <dt class="text-slate-500 dark:text-slate-400">Rebate</dt>
-                                            <dd class="font-medium tabular-nums text-emerald-700 dark:text-emerald-400">₹{{ number_format($leave['rebate_amount'], 2) }}</dd>
+                                            <dt class="text-slate-500 dark:text-slate-400">Net rebate</dt>
+                                            <dd @class([
+                                                'font-medium tabular-nums',
+                                                'text-emerald-700 dark:text-emerald-400' => $leave['rebate_amount_paise'] > 0,
+                                                'text-amber-700 dark:text-amber-400' => $leave['rebate_amount_paise'] < 0,
+                                            ])>
+                                                {{ $leave['rebate_amount_paise'] < 0 ? '− ' : '' }}₹{{ number_format(abs($leave['rebate_amount_paise']) / 100, 2) }}
+                                            </dd>
                                         </div>
                                     @endif
                                 </dl>
@@ -74,6 +86,77 @@
                                         <span class="text-slate-500 dark:text-slate-500">Reason:</span>
                                         {{ $leave['reason'] }}
                                     </p>
+                                @endif
+
+                                @if ($leave['end_date_modifications'] !== [])
+                                    <div class="space-y-2 border-l-2 border-slate-200 pl-3 dark:border-slate-700">
+                                        <p class="text-xs font-semibold text-slate-600 dark:text-slate-300">End-date modification history</p>
+                                        @foreach ($leave['end_date_modifications'] as $modification)
+                                            <div wire:key="contractor-leave-modification-{{ $leave['id'] }}-{{ $loop->index }}" class="text-xs text-slate-500 dark:text-slate-400">
+                                                <p>
+                                                    {{ $modification['previous_to_date'] }} → {{ $modification['new_to_date'] }}
+                                                    · Modified by {{ $modification['modified_by_name'] }}
+                                                    · {{ $modification['modified_at'] }}
+                                                </p>
+                                                @if ($modification['rebate_adjustment_paise'] !== 0)
+                                                    <p @class([
+                                                        'mt-0.5 font-medium',
+                                                        'text-emerald-700 dark:text-emerald-400' => $modification['rebate_adjustment_paise'] > 0,
+                                                        'text-amber-700 dark:text-amber-400' => $modification['rebate_adjustment_paise'] < 0,
+                                                    ])>
+                                                        Rebate adjustment:
+                                                        {{ $modification['rebate_adjustment_paise'] < 0 ? '− ' : '+' }}₹{{ number_format(abs($modification['rebate_adjustment_paise']) / 100, 2) }}
+                                                    </p>
+                                                @endif
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                @endif
+
+                                @if ($leave['can_modify_end_date'])
+                                    @if ($editingLeaveEndDateId === $leave['id'])
+                                        <div class="flex flex-col gap-2 rounded-lg border border-slate-200 p-3 sm:flex-row sm:items-end dark:border-slate-700">
+                                            <div class="space-y-1">
+                                                <label for="leave-end-{{ $leave['id'] }}" class="block text-xs font-medium text-slate-600 dark:text-slate-400">New leave end date</label>
+                                                <input
+                                                    id="leave-end-{{ $leave['id'] }}"
+                                                    type="date"
+                                                    wire:model="returnDates.{{ $leave['id'] }}"
+                                                    min="{{ $leave['from_date_value'] }}"
+                                                    max="{{ $leave['end_date_max'] }}"
+                                                    class="input !w-auto !py-2 text-sm"
+                                                >
+                                                @error('returnDates.'.$leave['id'])
+                                                    <p role="alert" class="text-xs font-medium text-rose-600 dark:text-rose-400">{{ $message }}</p>
+                                                @enderror
+                                            </div>
+                                            <button
+                                                type="button"
+                                                wire:click="updateLeaveEndDate({{ $leave['id'] }})"
+                                                wire:confirm="Update the leave end date and recalculate the student's rebate?"
+                                                wire:loading.attr="disabled"
+                                                wire:target="updateLeaveEndDate({{ $leave['id'] }})"
+                                                class="rounded-lg border border-emerald-700 px-3 py-2 text-sm font-medium text-emerald-800 transition hover:bg-emerald-50 disabled:opacity-60 dark:border-emerald-500 dark:text-emerald-300 dark:hover:bg-emerald-950/30"
+                                            >
+                                                Save end date
+                                            </button>
+                                            <button
+                                                type="button"
+                                                wire:click="cancelLeaveEndDateEdit"
+                                                class="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    @else
+                                        <button
+                                            type="button"
+                                            wire:click="editLeaveEndDate({{ $leave['id'] }})"
+                                            class="rounded-lg border border-emerald-700 px-3 py-2 text-sm font-medium text-emerald-800 transition hover:bg-emerald-50 dark:border-emerald-500 dark:text-emerald-300 dark:hover:bg-emerald-950/30"
+                                        >
+                                            Modify end date
+                                        </button>
+                                    @endif
                                 @endif
                             </div>
 

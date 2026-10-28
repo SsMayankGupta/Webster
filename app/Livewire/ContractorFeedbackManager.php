@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Events\FeedbackResponded;
 use App\Models\MealFeedback;
+use App\Support\SafeBroadcast;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 
@@ -67,7 +68,7 @@ class ContractorFeedbackManager extends Component
             'contractor_note' => $note,
         ]);
 
-        broadcast(new FeedbackResponded($feedback));
+        SafeBroadcast::send(new FeedbackResponded($feedback));
 
         $this->loadFeedbacks();
         $this->dispatch('portal-toast', message: 'Response recorded successfully.', type: 'success');

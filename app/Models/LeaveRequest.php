@@ -8,11 +8,17 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class LeaveRequest extends Model
 {
-    protected $fillable = ['student_id', 'from_date', 'to_date', 'reason', 'status', 'approved_by'];
+    protected $fillable = [
+        'student_id', 'from_date', 'to_date', 'requested_to_date', 'reason', 'status', 'approved_by',
+    ];
 
     protected function casts(): array
     {
-        return ['from_date' => 'date', 'to_date' => 'date'];
+        return [
+            'from_date' => 'date',
+            'to_date' => 'date',
+            'requested_to_date' => 'date',
+        ];
     }
 
     public function student(): BelongsTo
@@ -28,6 +34,11 @@ class LeaveRequest extends Model
     public function rebates(): HasMany
     {
         return $this->hasMany(RebateLedger::class, 'leave_request_id');
+    }
+
+    public function endDateModifications(): HasMany
+    {
+        return $this->hasMany(LeaveEndDateModification::class);
     }
 
     public function mealRefunds(): HasMany

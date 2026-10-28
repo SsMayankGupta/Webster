@@ -138,21 +138,41 @@ class PortalMealTest extends TestCase
         $this->assertSame('Wed, 28 Oct · 12:30 AM – 2:00 AM', $meal['serve_at_label']);
     }
 
-    public function test_opt_in_and_out_controls_are_only_shown_for_today(): void
+    public function test_students_can_opt_in_and_out_of_future_breakfast_before_its_cutoff(): void
     {
-        $this->travelTo(now()->startOfDay()->addHours(8));
+        $this->travelTo('2026-10-28 08:00:00 UTC');
 
         $student = $this->student();
-        $todayMenu = $this->menu(now()->addHours(6));
-        $tomorrowMenu = $this->menu(now()->addDay()->addHours(6));
+        $tomorrowBreakfast = Menu::query()->create([
+            'meal_type' => 'breakfast',
+            'serve_at' => '2026-10-29 01:30:00',
+            'items' => ['Oatmeal'],
+            'status' => 'open',
+        ]);
 
         $this->actingAs($student, 'student');
 
         $component = Livewire::test(StudentPortal::class);
 
         $component
-            ->assertSee('wire:click="confirmMeal('.$todayMenu->id.', true)"', false)
-            ->assertDontSee('wire:click="confirmMeal('.$tomorrowMenu->id.', true)"', false);
+            ->assertSee('wire:click="confirmMeal('.$tomorrowBreakfast->id.', true)"', false)
+            ->call('confirmMeal', $tomorrowBreakfast->id, true)
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('meal_bookings', [
+            'student_id' => $student->id,
+            'menu_id' => $tomorrowBreakfast->id,
+            'status' => 'booked',
+        ]);
+
+        $component->call('cancelMeal', $tomorrowBreakfast->id)
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('meal_bookings', [
+            'student_id' => $student->id,
+            'menu_id' => $tomorrowBreakfast->id,
+            'status' => 'cancelled',
+        ]);
     }
 
     public function test_redeemed_meal_refresh_shows_consumed_status_without_change_controls(): void

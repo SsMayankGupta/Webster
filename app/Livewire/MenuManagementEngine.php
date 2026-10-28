@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Events\MenuUpdated;
 use App\Models\MealTimeSlot;
 use App\Models\Menu;
+use App\Support\SafeBroadcast;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -106,7 +107,7 @@ class MenuManagementEngine extends Component
                 'headcount_locked' => false,
             ]);
 
-            broadcast(new MenuUpdated($newMenu));
+            SafeBroadcast::send(new MenuUpdated($newMenu));
         }
 
         $this->dispatch('portal-toast', message: 'Menu cloned successfully.', type: 'success');
@@ -193,7 +194,7 @@ class MenuManagementEngine extends Component
                     'meal_time_slot_id' => $timeSlot?->id,
                 ]);
 
-                broadcast(new MenuUpdated($menu));
+                SafeBroadcast::send(new MenuUpdated($menu));
             }
         }
 

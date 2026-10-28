@@ -9,6 +9,7 @@ use App\Models\MealBooking;
 use App\Models\Menu;
 use App\Models\User;
 use App\Services\QrTokenService;
+use App\Support\SafeBroadcast;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -67,7 +68,12 @@ class GuestPassRequest extends Component
         }
 
         $bookings = DB::transaction(function () use ($student, $menuIds, $guestCounts): array {
-            User::query()->whereKey($student->id)->lockForUpdate()->firstOrFail();
+            User::query()
+                ->whereKey($student->id)
+                ->where('role', 'student')
+                ->whereNull('archived_at')
+                ->lockForUpdate()
+                ->firstOrFail();
 
             $menus = Menu::query()
                 ->whereIn('id', $menuIds)
@@ -122,7 +128,7 @@ class GuestPassRequest extends Component
         });
 
         foreach ($bookings as $booking) {
-            broadcast(new GuestPassRequested($booking));
+            SafeBroadcast::send(new GuestPassRequested($booking));
         }
 
         $this->selectedMenus = [];

@@ -31,25 +31,29 @@ class ContractorHeadcount extends Component
         $this->lockMeals();
 
         $menus = Menu::query()
-            ->withCount([
-                'mealBookings as opted_in_count' => fn ($query) => $query->whereIn('status', ['booked', 'consumed']),
-            ])
             ->whereDate('serve_at', today())
             ->orderBy('serve_at')
             ->get();
 
-        $this->menus = $menus->map(fn (Menu $menu): array => [
-            'id' => $menu->id,
-            'meal_type' => $menu->meal_type,
-            'meal_label' => ucfirst($menu->meal_type),
-            'serve_at' => $menu->serve_at->format('D, d M · g:i A'),
-            'serve_date' => $menu->serve_at->format('Y-m-d'),
-            'items' => $menu->menuItems(),
-            'status' => $menu->status,
-            'is_locked' => $menu->is_locked,
-            'headcount_locked' => $menu->headcount_locked,
-            'opted_in_count' => $menu->opted_in_count,
-        ])->values()->all();
+        $this->menus = $menus->map(function (Menu $menu): array {
+            $menu->opted_in_count = MealBooking::headcountForMenu(
+                $menu->id,
+                ['booked', 'consumed'],
+            );
+
+            return [
+                'id' => $menu->id,
+                'meal_type' => $menu->meal_type,
+                'meal_label' => ucfirst($menu->meal_type),
+                'serve_at' => $menu->serve_at->format('D, d M · g:i A'),
+                'serve_date' => $menu->serve_at->format('Y-m-d'),
+                'items' => $menu->menuItems(),
+                'status' => $menu->status,
+                'is_locked' => $menu->is_locked,
+                'headcount_locked' => $menu->headcount_locked,
+                'opted_in_count' => $menu->opted_in_count,
+            ];
+        })->values()->all();
     }
 
     private function lockMeals(): void
@@ -60,10 +64,7 @@ class ContractorHeadcount extends Component
             ->get();
 
         foreach ($menus as $menu) {
-            $count = MealBooking::query()
-                ->where('menu_id', $menu->id)
-                ->where('status', 'booked')
-                ->count();
+            $count = MealBooking::headcountForMenu($menu->id);
 
             $menu->update([
                 'is_locked' => true,

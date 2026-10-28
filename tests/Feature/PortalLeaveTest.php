@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Livewire\ContractorLeave;
 use App\Livewire\StudentPortal;
 use App\Models\LeaveRequest;
 use App\Models\MealBooking;
@@ -34,11 +35,11 @@ class PortalLeaveTest extends TestCase
             ->call('requestLeave')
             ->assertHasNoErrors();
 
-        $this->assertDatabaseHas('leave_requests', [
-            'student_id' => $student->id,
-            'reason' => 'Home visit',
-            'status' => 'pending',
-        ]);
+        $leave = LeaveRequest::query()->sole();
+        $this->assertSame(now()->addDays(3)->toDateString(), $leave->to_date->toDateString());
+        $this->assertSame(now()->addDays(3)->toDateString(), $leave->requested_to_date->toDateString());
+        $this->assertSame('Home visit', $leave->reason);
+        $this->assertSame('pending', $leave->status);
     }
 
     public function test_end_date_must_not_precede_the_start_date(): void
@@ -151,7 +152,49 @@ class PortalLeaveTest extends TestCase
         $this->assertSame(10000, $state['wallet']['approved_leave_rebate_paise']);
 
         $component->call('setTab', 'leave')
-            ->assertSee('₹100.00 rebate credited');
+            ->assertSee('₹100.00 net rebate credited');
+    }
+
+    public function test_student_leave_history_shows_early_return_date_and_recalculated_rebate(): void
+    {
+        $this->travelTo('2026-10-28 12:00:00');
+        $contractor = $this->contractor();
+        $student = $this->student();
+        $student->forceFill(['contractor_id' => $contractor->id])->save();
+        $leave = $this->leave($student, today()->subDays(2), today()->addDays(2));
+        app(RebateService::class)->approve($leave, $contractor);
+        $this->actingAs($student, 'student');
+        $studentPortal = Livewire::test(StudentPortal::class);
+        $this->assertFalse($studentPortal->get('state')['leaves'][0]['ended_early']);
+
+        $this->actingAs($contractor, 'contractor');
+
+        Livewire::test(ContractorLeave::class)
+            ->set("returnDates.{$leave->id}", today()->subDay()->toDateString())
+            ->call('updateLeaveEndDate', $leave->id)
+            ->assertHasNoErrors();
+
+        $this->actingAs($student, 'student');
+
+        $component = $studentPortal->call('setTab', 'leave');
+        $state = $component->get('state');
+        $leaveState = collect($state['leaves'])->firstWhere('id', $leave->id);
+
+        $this->assertSame(today()->subDay()->toDateString(), $leaveState['to_date']);
+        $this->assertSame(today()->addDays(2)->toDateString(), $leaveState['requested_to_date']);
+        $this->assertTrue($leaveState['ended_early']);
+        $this->assertSame(10000, $leaveState['rebate_paise']);
+        $this->assertSame(10000, $state['billing']['rebate_paise']);
+        $this->assertCount(1, $leaveState['end_date_modifications']);
+        $this->assertSame($contractor->name, $leaveState['end_date_modifications'][0]['modified_by_name']);
+        $this->assertSame(-15000, $leaveState['end_date_modifications'][0]['rebate_adjustment_paise']);
+        $component
+            ->assertSee('End date modified by contractor')
+            ->assertSee('originally approved through '.today()->addDays(2)->format('d M Y'))
+            ->assertSee('End-date modification history')
+            ->assertSee(today()->addDays(2)->format('d M Y').' → '.today()->subDay()->format('d M Y'))
+            ->assertSee('Modified by')
+            ->assertSee('₹100.00 net rebate credited');
     }
 
     public function test_student_wallet_shows_recorded_fees_refunds_and_transfer_status(): void

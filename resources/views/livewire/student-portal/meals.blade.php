@@ -257,7 +257,7 @@
                                         </span>
                                     @endif
 
-                                    @if ($day['is_today'] && $meal['can_manage'])
+                                    @if ($meal['can_manage'])
                                         <button
                                             type="button"
                                             wire:click="{{ $meal['opted_in'] ? 'cancelMeal('.$meal['id'].')' : 'confirmMeal('.$meal['id'].', true)' }}"
@@ -267,7 +267,7 @@
                                         >
                                             {{ $meal['opted_in'] ? 'Opt out' : 'Opt in' }}
                                         </button>
-                                    @elseif ($day['is_today'] && ! $meal['is_consumed'] && ! $meal['is_on_approved_leave'])
+                                    @elseif (! $meal['is_consumed'] && ! $meal['is_on_approved_leave'])
                                         <span class="text-[10px] font-medium text-slate-400">Choice locked</span>
                                     @endif
                                 </div>

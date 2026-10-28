@@ -21,6 +21,10 @@ class ContractorLeave extends Component
 {
     public array $leaves = [];
 
+    public array $returnDates = [];
+
+    public ?int $editingLeaveEndDateId = null;
+
     public string $filter = 'all';
 
     public ?int $selectedStudentId = null;
@@ -59,7 +63,11 @@ class ContractorLeave extends Component
         $contractor = $this->contractor();
         $query = LeaveRequest::query()
             ->whereHas('student', fn ($query) => $query->where('contractor_id', $contractor->id))
-            ->with(['student:id,name,college_id,contractor_id', 'rebates']);
+            ->with([
+                'student:id,name,college_id,contractor_id',
+                'rebates',
+                'endDateModifications' => fn ($query) => $query->orderByDesc('created_at')->orderByDesc('id'),
+            ]);
 
         if ($this->filter !== 'all') {
             $query->where('status', $this->filter);
@@ -67,19 +75,63 @@ class ContractorLeave extends Component
 
         $leaves = $query->orderByDesc('created_at')->orderByDesc('id')->get();
 
+        $this->returnDates = $leaves
+            ->filter(fn (LeaveRequest $leave): bool => $leave->status === 'approved')
+            ->mapWithKeys(fn (LeaveRequest $leave): array => [$leave->id => $leave->to_date->toDateString()])
+            ->all();
+
         $this->leaves = $leaves->map(fn (LeaveRequest $leave): array => [
             'id' => $leave->id,
             'student_name' => $leave->student->name,
             'student_college_id' => $leave->student->college_id,
+            'from_date_value' => $leave->from_date->toDateString(),
+            'to_date_value' => $leave->to_date->toDateString(),
+            'requested_to_date' => ($leave->requested_to_date ?? $leave->to_date)->toDateString(),
+            'ended_early' => $leave->requested_to_date !== null
+                && $leave->to_date->lt($leave->requested_to_date),
             'from_date' => $leave->from_date->format('d M Y'),
             'to_date' => $leave->to_date->format('d M Y'),
+            'requested_to_label' => ($leave->requested_to_date ?? $leave->to_date)->format('d M Y'),
             'days' => $leave->from_date->diffInDays($leave->to_date) + 1,
+            'can_modify_end_date' => $leave->status === 'approved'
+                && ($leave->requested_to_date ?? $leave->to_date)->gt($leave->from_date),
+            'end_date_max' => ($leave->requested_to_date ?? $leave->to_date)->toDateString(),
             'reason' => $leave->reason,
             'status' => $leave->status,
-            'rebate_amount' => $leave->rebates->sum(
+            'rebate_amount_paise' => $leave->rebates->sum(
                 fn ($rebate): int => (int) ($rebate->amount_paise ?? round(((float) $rebate->amount) * 100))
-            ) / 100,
+            ),
+            'end_date_modifications' => $leave->endDateModifications
+                ->map(fn ($modification): array => [
+                    'previous_to_date' => $modification->previous_to_date->format('d M Y'),
+                    'new_to_date' => $modification->new_to_date->format('d M Y'),
+                    'modified_by_name' => $modification->modified_by_name,
+                    'modified_at' => $modification->created_at
+                        ->timezone(config('mess.display_timezone'))
+                        ->format('d M Y, g:i A'),
+                    'rebate_adjustment_paise' => $modification->rebate_adjustment_paise,
+                ])
+                ->all(),
         ])->values()->all();
+    }
+
+    public function editLeaveEndDate(int $leaveId): void
+    {
+        $leave = $this->contractorLeave($this->contractor(), $leaveId);
+
+        abort_unless(
+            $leave->status === 'approved'
+                && ($leave->requested_to_date ?? $leave->to_date)->gt($leave->from_date),
+            404,
+        );
+
+        $this->editingLeaveEndDateId = $leave->id;
+        $this->returnDates[$leave->id] = $leave->to_date->toDateString();
+    }
+
+    public function cancelLeaveEndDateEdit(): void
+    {
+        $this->editingLeaveEndDateId = null;
     }
 
     public function approveLeave(int $leaveId): void
@@ -99,6 +151,35 @@ class ContractorLeave extends Component
 
         $this->loadLeaves();
         $this->dispatch('portal-toast', message: 'Leave rejected.', type: 'warning');
+    }
+
+    public function updateLeaveEndDate(int $leaveId): void
+    {
+        $contractor = $this->contractor();
+        $leave = $this->contractorLeave($contractor, $leaveId);
+        $originalEndDate = ($leave->requested_to_date ?? $leave->to_date)->toDateString();
+        $validated = $this->validate([
+            "returnDates.{$leaveId}" => [
+                'required',
+                'date_format:Y-m-d',
+                'after_or_equal:'.$leave->from_date->toDateString(),
+                'before_or_equal:'.$originalEndDate,
+            ],
+        ]);
+
+        app(RebateService::class)->updateLeaveEndDate(
+            $leave,
+            $contractor,
+            $validated['returnDates'][$leaveId],
+        );
+
+        $this->loadLeaves();
+        $this->editingLeaveEndDateId = null;
+        $this->dispatch(
+            'portal-toast',
+            message: 'Leave end date updated. The student rebate was recalculated.',
+            type: 'success',
+        );
     }
 
     public function addFeePayment(): void

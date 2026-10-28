@@ -5,8 +5,9 @@ namespace App\Livewire;
 use App\Events\MenuUpdated;
 use App\Models\MealTimeSlot;
 use App\Models\Menu;
-use Illuminate\Support\Facades\DB;
+use App\Support\SafeBroadcast;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -124,7 +125,7 @@ class MealTimingManager extends Component
         });
 
         foreach ($updatedMenus as $menu) {
-            broadcast(new MenuUpdated($menu));
+            SafeBroadcast::send(new MenuUpdated($menu));
         }
 
         $this->loadTimeSlots();

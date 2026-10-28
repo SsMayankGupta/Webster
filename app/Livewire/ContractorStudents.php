@@ -3,9 +3,10 @@
 namespace App\Livewire;
 
 use App\Models\User;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Validation\Rule;
 use App\Services\ExtraMealBillingService;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -112,21 +113,30 @@ class ContractorStudents extends Component
 
     public function archiveStudent(int $studentId): void
     {
-        $student = $this->contractor()->students()->findOrFail($studentId);
+        $this->resetErrorBag('archive');
+        $contractor = $this->contractor();
+        $archiveError = DB::transaction(function () use ($contractor, $studentId): ?string {
+            $student = $contractor->students()->whereKey($studentId)->lockForUpdate()->firstOrFail();
 
-        if ($student->mealBookings()->where('is_guest_pass', true)->where('status', 'pending_approval')->exists()) {
-            $this->addError('archive', 'Resolve this student’s pending guest-meal requests before deactivating the account.');
+            if ($student->mealBookings()->where('is_guest_pass', true)->where('status', 'pending_approval')->exists()) {
+                return 'Resolve this student’s pending guest-meal requests before deactivating the account.';
+            }
+
+            if (app(ExtraMealBillingService::class)->summary($student)['outstanding_paise'] > 0) {
+                return 'Collect the outstanding guest-meal balance before deactivating the account.';
+            }
+
+            $student->forceFill(['archived_at' => now()])->save();
+
+            return null;
+        });
+
+        if ($archiveError !== null) {
+            $this->addError('archive', $archiveError);
 
             return;
         }
 
-        if (app(ExtraMealBillingService::class)->summary($student)['outstanding_paise'] > 0) {
-            $this->addError('archive', 'Collect the outstanding guest-meal balance before deactivating the account.');
-
-            return;
-        }
-
-        $student->forceFill(['archived_at' => now()])->save();
         $this->resetPage();
 
         if ($this->editingStudentId === $studentId) {
@@ -178,6 +188,7 @@ class ContractorStudents extends Component
         $this->resetPage('archivedPage');
         $this->statusMessage = 'Student account permanently deleted.';
     }
+
 
     public function cancelStudentEdit(): void
     {

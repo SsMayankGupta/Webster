@@ -8,6 +8,7 @@ use App\Models\HeadcountLedger;
 use App\Models\MealBooking;
 use App\Models\Menu;
 use App\Models\User;
+use App\Support\SafeBroadcast;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -38,7 +39,7 @@ class ContractorGuestQueue extends Component
     public function approve(int $bookingId): void
     {
         $contractor = $this->contractor();
-        $this->pendingRequest($contractor, $bookingId);
+        $pendingRequest = $this->pendingRequest($contractor, $bookingId);
         $validated = $this->validate([
             "guestPrices.{$bookingId}" => [
                 'required',
@@ -50,14 +51,19 @@ class ContractorGuestQueue extends Component
         ]);
         $unitPricePaise = $this->amountToPaise($validated['guestPrices'][$bookingId]);
 
-        $booking = DB::transaction(function () use ($contractor, $bookingId, $unitPricePaise): MealBooking {
+        $booking = DB::transaction(function () use ($contractor, $bookingId, $pendingRequest, $unitPricePaise): MealBooking {
+            $student = User::query()
+                ->whereKey($pendingRequest->student_id)
+                ->where('contractor_id', $contractor->id)
+                ->whereNull('archived_at')
+                ->lockForUpdate()
+                ->firstOrFail();
+
             $booking = MealBooking::query()
                 ->whereKey($bookingId)
+                ->where('student_id', $student->id)
                 ->where('is_guest_pass', true)
                 ->where('status', 'pending_approval')
-                ->whereHas('student', fn ($query) => $query
-                    ->where('contractor_id', $contractor->id)
-                    ->whereNull('archived_at'))
                 ->with(['menu.mealTimeSlot', 'student'])
                 ->lockForUpdate()
                 ->firstOrFail();
@@ -74,7 +80,6 @@ class ContractorGuestQueue extends Component
                 ]);
             }
 
-            User::query()->whereKey($booking->student_id)->lockForUpdate()->firstOrFail();
             $booking->update(['status' => 'booked']);
 
             ExtraMealCharge::query()->create([
@@ -110,7 +115,7 @@ class ContractorGuestQueue extends Component
             return $booking->fresh(['menu', 'student']);
         });
 
-        broadcast(new GuestPassApproved($booking, (string) $booking->assigned_lane));
+        SafeBroadcast::send(new GuestPassApproved($booking, (string) $booking->assigned_lane));
         $this->loadPendingRequests();
         $this->dispatch('portal-toast', message: 'Guest pass approved and the extra-meal charge recorded.', type: 'success');
     }
@@ -118,7 +123,18 @@ class ContractorGuestQueue extends Component
     public function reject(int $bookingId): void
     {
         $contractor = $this->contractor();
-        $this->pendingRequest($contractor, $bookingId)->update(['status' => 'cancelled']);
+        DB::transaction(function () use ($contractor, $bookingId): void {
+            MealBooking::query()
+                ->whereKey($bookingId)
+                ->where('is_guest_pass', true)
+                ->where('status', 'pending_approval')
+                ->whereHas('student', fn ($query) => $query
+                    ->where('contractor_id', $contractor->id)
+                    ->whereNull('archived_at'))
+                ->lockForUpdate()
+                ->firstOrFail()
+                ->update(['status' => 'cancelled']);
+        });
 
         $this->loadPendingRequests();
         $this->dispatch('portal-toast', message: 'Guest pass rejected.', type: 'warning');

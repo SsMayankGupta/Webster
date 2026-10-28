@@ -244,7 +244,10 @@ class PortalStateBuilder
     {
         $leaves = LeaveRequest::query()
             ->where('student_id', $student->id)
-            ->with(['rebates' => fn ($query) => $query->orderBy('created_at')])
+            ->with([
+                'rebates' => fn ($query) => $query->orderBy('created_at'),
+                'endDateModifications' => fn ($query) => $query->orderByDesc('created_at')->orderByDesc('id'),
+            ])
             ->latest()
             ->limit(12)
             ->get();
@@ -264,18 +267,33 @@ class PortalStateBuilder
                     ? $this->approvedLeaves->uncreditedDays($leave, $approvedRanges)
                         * (int) config('mess.rebate_per_day_paise')
                     : 0;
+                $requestedToDate = $leave->requested_to_date ?? $leave->to_date;
 
                 return [
                     'id' => $leave->id,
                     'from_date' => $leave->from_date->toDateString(),
                     'to_date' => $leave->to_date->toDateString(),
+                    'requested_to_date' => $requestedToDate->toDateString(),
                     'from_label' => $leave->from_date->format('d M Y'),
                     'to_label' => $leave->to_date->format('d M Y'),
+                    'requested_to_label' => $requestedToDate->format('d M Y'),
+                    'ended_early' => $leave->to_date->lt($requestedToDate),
                     'days' => $days,
                     'reason' => $leave->reason,
                     'status' => $leave->status,
                     'rebate_paise' => $rebatePaise,
                     'estimated_rebate_paise' => $estimatedRebatePaise,
+                    'end_date_modifications' => $leave->endDateModifications
+                        ->map(fn ($modification): array => [
+                            'previous_to_date' => $modification->previous_to_date->format('d M Y'),
+                            'new_to_date' => $modification->new_to_date->format('d M Y'),
+                            'modified_by_name' => $modification->modified_by_name,
+                            'modified_at' => $modification->created_at
+                                ->timezone(config('mess.display_timezone'))
+                                ->format('d M Y, g:i A'),
+                            'rebate_adjustment_paise' => $modification->rebate_adjustment_paise,
+                        ])
+                        ->all(),
                     'created_at' => $leave->created_at->toDateString(),
                 ];
             })
@@ -304,8 +322,6 @@ class PortalStateBuilder
             $feeQuery->whereBetween('created_at', $semesterRange);
             $refundQuery->whereBetween('created_at', $semesterRange);
             $rebateQuery->whereBetween('created_at', $semesterRange);
-            $extraMealChargeQuery->whereBetween('created_at', $semesterRange);
-            $extraMealCollectionQuery->whereBetween('created_at', $semesterRange);
         }
 
         $feePayments = $student->feePayments()

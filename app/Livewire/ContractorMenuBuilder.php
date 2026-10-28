@@ -6,6 +6,7 @@ use App\Events\MenuUpdated;
 use App\Models\MealTimeSlot;
 use App\Models\Menu;
 use App\Services\NutritionApiService;
+use App\Support\SafeBroadcast;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Layout;
@@ -309,7 +310,7 @@ class ContractorMenuBuilder extends Component
             ]);
 
             $existingSlots->put($slotKey, true);
-            broadcast(new MenuUpdated($newMenu));
+            SafeBroadcast::send(new MenuUpdated($newMenu));
             $createdMenus++;
         }
 
@@ -405,7 +406,7 @@ class ContractorMenuBuilder extends Component
                 ]);
 
                 $existingSlots->put($slotKey, true);
-                broadcast(new MenuUpdated($menu));
+                SafeBroadcast::send(new MenuUpdated($menu));
                 $createdMenus++;
             }
         }

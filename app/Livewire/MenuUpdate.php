@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Events\MenuUpdated;
 use App\Models\Menu;
+use App\Support\SafeBroadcast;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
@@ -168,7 +169,7 @@ class MenuUpdate extends Component
             'calories' => $data['calories'],
         ]);
 
-        broadcast(new MenuUpdated($menu));
+        SafeBroadcast::send(new MenuUpdated($menu));
         $this->loadMenus();
         $this->statusMessage = 'Meal updated successfully.';
 

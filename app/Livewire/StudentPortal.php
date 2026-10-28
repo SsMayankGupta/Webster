@@ -125,6 +125,12 @@ class StudentPortal extends Component
 
         if ($tab === 'qr') {
             $this->refreshQrToken();
+        } elseif ($tab === 'leave') {
+            $student = $this->currentStudent();
+
+            if ($student !== null) {
+                $this->loadPortalState($student);
+            }
         }
     }
 
@@ -392,6 +398,7 @@ class StudentPortal extends Component
             'student_id' => $student->id,
             'from_date' => $validated['leaveFrom'],
             'to_date' => $validated['leaveTo'],
+            'requested_to_date' => $validated['leaveTo'],
             'reason' => $validated['leaveReason'] ?: null,
             'status' => 'pending',
         ]);

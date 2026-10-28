@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Events\GuestPassRequested;
 use App\Livewire\ContractorGuestQueue;
+use App\Livewire\ContractorHeadcount;
 use App\Livewire\ContractorLeave;
 use App\Livewire\ContractorStudents;
 use App\Livewire\GuestPassRequest;
@@ -13,7 +15,11 @@ use App\Models\HeadcountLedger;
 use App\Models\MealBooking;
 use App\Models\Menu;
 use App\Models\User;
+use Illuminate\Broadcasting\BroadcastException;
+use Illuminate\Contracts\Broadcasting\Broadcaster;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Broadcast;
+use Illuminate\Support\Facades\Log;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -26,6 +32,7 @@ class GuestMealBillingTest extends TestCase
         $contractor = $this->contractor('CON-GUEST-1');
         $student = $this->student($contractor, 'STU-GUEST-1');
         $menu = $this->menu();
+        $secondMenu = $this->menu();
         MealBooking::query()->create([
             'student_id' => $student->id,
             'menu_id' => $menu->id,
@@ -34,17 +41,62 @@ class GuestMealBillingTest extends TestCase
         $this->actingAs($student, 'student');
 
         Livewire::test(GuestPassRequest::class)
+            ->set('selectedMenus', [$menu->id, $secondMenu->id])
+            ->set("guestCounts.{$menu->id}", 3)
+            ->set("guestCounts.{$secondMenu->id}", 2)
+            ->call('submit')
+            ->assertHasNoErrors()
             ->set('selectedMenus', [$menu->id])
             ->set("guestCounts.{$menu->id}", 3)
             ->call('submit')
+            ->assertHasErrors('selectedMenus');
+
+        $guestBookings = MealBooking::query()
+            ->where('is_guest_pass', true)
+            ->orderBy('menu_id')
+            ->get();
+        $this->assertCount(2, $guestBookings);
+        $this->assertSame([3, 2], $guestBookings->pluck('guest_count')->all());
+        $this->assertSame($student->id, $guestBookings[0]->primary_student_id);
+        $this->assertSame('pending_approval', $guestBookings[0]->status);
+    }
+
+    public function test_student_guest_pass_submission_succeeds_when_broadcasting_fails(): void
+    {
+        $contractor = $this->contractor('CON-GUEST-BROADCAST');
+        $student = $this->student($contractor, 'STU-GUEST-BROADCAST');
+        $menu = $this->menu();
+        $broadcaster = \Mockery::mock(Broadcaster::class);
+        $broadcaster->shouldReceive('broadcast')
+            ->once()
+            ->andThrow(new BroadcastException('Pusher timed out'));
+        Broadcast::extend('failing', fn () => $broadcaster);
+        config([
+            'broadcasting.default' => 'failing',
+            'broadcasting.connections.failing.driver' => 'failing',
+            'queue.default' => 'sync',
+        ]);
+        Log::shouldReceive('warning')
+            ->once()
+            ->with('Broadcast failed', [
+                'event' => GuestPassRequested::class,
+                'exception' => BroadcastException::class,
+            ]);
+        $this->actingAs($student, 'student');
+
+        Livewire::test(GuestPassRequest::class)
+            ->set('selectedMenus', [$menu->id])
+            ->set("guestCounts.{$menu->id}", 2)
+            ->call('submit')
             ->assertHasNoErrors();
 
-        $guestBooking = MealBooking::query()
-            ->where('is_guest_pass', true)
-            ->sole();
-        $this->assertSame(3, $guestBooking->guest_count);
-        $this->assertSame($student->id, $guestBooking->primary_student_id);
-        $this->assertSame('pending_approval', $guestBooking->status);
+        $this->assertDatabaseHas('meal_bookings', [
+            'student_id' => $student->id,
+            'menu_id' => $menu->id,
+            'is_guest_pass' => true,
+            'guest_count' => 2,
+            'status' => 'pending_approval',
+        ]);
     }
 
     public function test_contractor_approval_sets_a_per_guest_charge_and_updates_headcount(): void
@@ -78,6 +130,30 @@ class GuestMealBillingTest extends TestCase
         $this->assertSame(2, HeadcountLedger::query()->where('menu_id', $menu->id)->latest('id')->value('guest_count'));
     }
 
+    public function test_contractor_headcount_counts_each_relative_instead_of_one_group_booking(): void
+    {
+        $this->travelTo(today()->startOfDay()->addHours(5));
+        $contractor = $this->contractor('CON-GUEST-HEADCOUNT');
+        $student = $this->student($contractor, 'STU-GUEST-HEADCOUNT');
+        $menu = Menu::query()->create([
+            'meal_type' => 'lunch',
+            'serve_at' => now()->addHours(6),
+            'recipe_text' => 'Headcount test',
+            'status' => 'open',
+        ]);
+        MealBooking::query()->create([
+            'student_id' => $student->id,
+            'menu_id' => $menu->id,
+            'status' => 'booked',
+        ]);
+        $this->guestBooking($student, $menu, 3, 'booked');
+        $this->actingAs($contractor, 'contractor');
+
+        $menus = collect(Livewire::test(ContractorHeadcount::class)->get('menus'))->keyBy('id');
+
+        $this->assertSame(4, $menus[$menu->id]['opted_in_count']);
+    }
+
     public function test_rejected_guest_request_does_not_create_a_charge(): void
     {
         $contractor = $this->contractor('CON-GUEST-4');
@@ -91,6 +167,51 @@ class GuestMealBillingTest extends TestCase
 
         $this->assertSame('cancelled', $booking->fresh()->status);
         $this->assertDatabaseCount('extra_meal_charges', 0);
+    }
+
+    public function test_contractor_cannot_approve_a_request_after_the_meal_cutoff(): void
+    {
+        $contractor = $this->contractor('CON-GUEST-CUTOFF');
+        $student = $this->student($contractor, 'STU-GUEST-CUTOFF');
+        $menu = Menu::query()->create([
+            'meal_type' => 'lunch',
+            'serve_at' => now()->addHour(),
+            'recipe_text' => 'Cutoff test',
+            'status' => 'open',
+        ]);
+        $booking = $this->guestBooking($student, $menu, 1);
+        $this->actingAs($contractor, 'contractor');
+
+        Livewire::test(ContractorGuestQueue::class)
+            ->set("guestPrices.{$booking->id}", '50.00')
+            ->call('approve', $booking->id)
+            ->assertHasErrors("guestPrices.{$booking->id}");
+
+        $this->assertSame('pending_approval', $booking->fresh()->status);
+        $this->assertDatabaseCount('extra_meal_charges', 0);
+    }
+
+    public function test_student_cannot_retrieve_another_students_guest_pass_qr(): void
+    {
+        $contractor = $this->contractor('CON-GUEST-QR');
+        $student = $this->student($contractor, 'STU-GUEST-QR');
+        $otherStudent = $this->student($contractor, 'STU-GUEST-QR-OTHER');
+        $booking = $this->guestBooking($otherStudent, $this->menu(), 1, 'booked');
+        $this->actingAs($student, 'student');
+
+        Livewire::test(GuestPassRequest::class)
+            ->call('refreshPassToken', $booking->id)
+            ->assertNotFound();
+    }
+
+    public function test_contractor_guest_queue_is_available_on_its_authenticated_route(): void
+    {
+        $contractor = $this->contractor('CON-GUEST-ROUTE');
+        $this->actingAs($contractor, 'contractor');
+
+        $this->get(route('contractor.guest-meals'))
+            ->assertOk()
+            ->assertSee('Guest meal passes');
     }
 
     public function test_guest_meal_collections_cannot_exceed_the_due_balance(): void
@@ -108,7 +229,10 @@ class GuestMealBillingTest extends TestCase
             ->assertHasErrors('extraMealAmount')
             ->set('extraMealAmount', '100.00')
             ->call('addExtraMealCollection')
-            ->assertHasNoErrors();
+            ->assertHasNoErrors()
+            ->assertSee('Guest meals charged · all time')
+            ->assertSee('Guest meals collected · all time')
+            ->assertSee('Guest meals outstanding · all time');
 
         $this->assertDatabaseHas('extra_meal_collections', [
             'student_id' => $student->id,

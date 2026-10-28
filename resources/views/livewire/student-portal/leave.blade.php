@@ -2,7 +2,7 @@
     $billing = $state['billing'];
 @endphp
 
-<div class="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+<div wire:poll.60s="refreshMealState" class="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
     <div class="space-y-4">
         <div class="card p-5">
             <div class="flex items-start justify-between gap-3">
@@ -35,7 +35,7 @@
                     <section aria-labelledby="student-wallet-heading" class="card overflow-hidden xl:col-span-2">
                         <div class="border-b border-slate-100 px-5 py-4 dark:border-slate-800">
                             <h2 id="student-wallet-heading" class="font-lora text-xl font-semibold tracking-tight">My wallet</h2>
-                            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Totals for {{ $state['wallet']['period_label'] }}. Transaction history is retained when the semester dates change.</p>
+                            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Other totals cover {{ $state['wallet']['period_label'] }}; guest-meal balances are all-time so payments made after semester end still reduce the due amount.</p>
                         </div>
 
                         <div class="grid gap-3 p-5 sm:grid-cols-2 xl:grid-cols-4">
@@ -45,9 +45,9 @@
                                 ['label' => 'Transferred', 'amount' => $state['wallet']['transferred_refund_paise'], 'class' => 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300'],
                                 ['label' => 'Awaiting transfer', 'amount' => $state['wallet']['pending_refund_paise'], 'class' => 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300'],
                                 ['label' => 'Approved-leave rebates', 'amount' => $state['wallet']['approved_leave_rebate_paise'], 'class' => 'border-brand-200 bg-brand-50 text-brand-800 dark:border-brand-500/40 dark:bg-brand-500/10 dark:text-brand-200'],
-                                ['label' => 'Guest meals charged', 'amount' => $state['wallet']['extra_meal_charged_paise'], 'class' => 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300'],
-                                ['label' => 'Guest meals collected', 'amount' => $state['wallet']['extra_meal_collected_paise'], 'class' => 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300'],
-                                ['label' => 'Guest meals outstanding', 'amount' => $state['wallet']['extra_meal_outstanding_paise'], 'class' => 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300'],
+                                ['label' => 'Guest meals charged · all time', 'amount' => $state['wallet']['extra_meal_charged_paise'], 'class' => 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300'],
+                                ['label' => 'Guest meals collected · all time', 'amount' => $state['wallet']['extra_meal_collected_paise'], 'class' => 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300'],
+                                ['label' => 'Guest meals outstanding · all time', 'amount' => $state['wallet']['extra_meal_outstanding_paise'], 'class' => 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300'],
                             ] as $walletTotal)
                                 <div class="rounded-xl border p-4 {{ $walletTotal['class'] }}">
                                     <p class="text-[11px] font-semibold uppercase tracking-wider opacity-75">{{ $walletTotal['label'] }}</p>
@@ -164,9 +164,42 @@
                                 {{ $leave['days'] }} day{{ $leave['days'] === 1 ? '' : 's' }}
                                 @if ($leave['reason']) · {{ $leave['reason'] }} @endif
                             </p>
+                            @if ($leave['ended_early'])
+                                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                    End date modified by contractor; originally approved through {{ $leave['requested_to_label'] }}.
+                                </p>
+                            @endif
+                            @if ($leave['end_date_modifications'] !== [])
+                                <div class="mt-2 space-y-2 border-l-2 border-slate-200 pl-3 dark:border-slate-700">
+                                    <p class="text-xs font-semibold text-slate-600 dark:text-slate-300">End-date modification history</p>
+                                    @foreach ($leave['end_date_modifications'] as $modification)
+                                        <div wire:key="student-leave-modification-{{ $leave['id'] }}-{{ $loop->index }}" class="text-xs text-slate-500 dark:text-slate-400">
+                                            <p>
+                                                {{ $modification['previous_to_date'] }} → {{ $modification['new_to_date'] }}
+                                                · Modified by {{ $modification['modified_by_name'] }}
+                                                · {{ $modification['modified_at'] }}
+                                            </p>
+                                            @if ($modification['rebate_adjustment_paise'] !== 0)
+                                                <p @class([
+                                                    'mt-0.5 font-medium',
+                                                    'text-emerald-700 dark:text-emerald-400' => $modification['rebate_adjustment_paise'] > 0,
+                                                    'text-amber-700 dark:text-amber-400' => $modification['rebate_adjustment_paise'] < 0,
+                                                ])>
+                                                    Rebate adjustment:
+                                                    {{ $modification['rebate_adjustment_paise'] < 0 ? '− ' : '+' }}₹{{ number_format(abs($modification['rebate_adjustment_paise']) / 100, 2) }}
+                                                </p>
+                                            @endif
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @endif
                             @if ($leave['rebate_paise'] > 0)
                                 <p class="mt-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                                    ₹{{ number_format($leave['rebate_paise'] / 100, 2) }} rebate credited
+                                    ₹{{ number_format($leave['rebate_paise'] / 100, 2) }} net rebate credited
+                                </p>
+                            @elseif ($leave['rebate_paise'] < 0)
+                                <p class="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-400">
+                                    − ₹{{ number_format(abs($leave['rebate_paise']) / 100, 2) }} rebate adjustment
                                 </p>
                             @elseif ($leave['status'] === 'approved')
                                 <p class="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400">
@@ -179,7 +212,9 @@
                             @endif
                         </div>
                         <div class="text-right">
-                            @if ($leave['status'] === 'approved')
+                            @if ($leave['ended_early'])
+                                <span class="badge-info">Ended early</span>
+                            @elseif ($leave['status'] === 'approved')
                                 <span class="badge-success">Approved</span>
                             @elseif ($leave['status'] === 'rejected')
                                 <span class="badge-danger">Rejected</span>

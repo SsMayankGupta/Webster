@@ -58,10 +58,7 @@ class MealLifecycleService
         $menu->is_locked = in_array($state, ['locked', 'serving', 'closed'], true);
 
         if ($state === 'locked') {
-            $menu->headcount_locked = MealBooking::query()
-                ->where('menu_id', $menu->id)
-                ->where('status', 'booked')
-                ->count();
+            $menu->headcount_locked = MealBooking::headcountForMenu($menu->id);
 
             $this->assignLanes($menu);
         }
